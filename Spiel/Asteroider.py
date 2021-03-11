@@ -4,14 +4,13 @@ from panda3d.core import WindowProperties
 from PyQt5.QtWidgets import QApplication, QLabel, QLineEdit, QPushButton, QVBoxLayout, QWidget
 import mysql.connector
 import bcrypt
-from classes import Player # from classes beschreibt sozusagen den relativen Dateipfad von Player
 
 
 
 class Asteroider(ShowBase):
     
 
-    def qtBoxLogin(self):
+    def qtBox(self):
 
         self.app = QApplication([])
         self.window = QWidget()
@@ -24,18 +23,16 @@ class Asteroider(ShowBase):
         self.layout.addWidget(QLabel("Password: "))
         self.pwLE = QLineEdit()
         self.layout.addWidget(self.pwLE)
+        # Box für Login oder Registrieren
         # und ein Login Knopf
-        self.buttonLog = QPushButton("Login!")
-        self.layout.addWidget(self.buttonLog)
-        self.buttonReg = QPushButton("Registrieren!")
-        self.layout.addWidget(self.buttonReg)
+        self.button = QPushButton("Los!")
+        self.layout.addWidget(self.button)
 
         def on_button_clicked():
             # Wenn der Button gedrückt wird, wird das sichtbare Fenster geschlossen, der Code läuft normal weiter
             self.app.quit()
 
-        self.buttonLog.clicked.connect(on_button_clicked()) #Errororor
-        self.buttonReg.clicked.connect(on_button_clicked())
+        self.button.clicked.connect(on_button_clicked())
 
 
         # Das oben erstellte Layout dem Fenster zuweisen und das Fenster öffnen
@@ -45,8 +42,7 @@ class Asteroider(ShowBase):
 
         return list((self.usernameLE.text(), self.pwLE.text()))
     
-
-    def login(username, pw):
+    def login(self, username, pw):
 
         verbindung = mysql.connector.connect(user='root', password='root', host='localhost', database='testdb')
 
@@ -74,7 +70,7 @@ class Asteroider(ShowBase):
             print("Falsches Passwort")
             return False
     
-    def register(username, pw):
+    def register(self, username, pw):
         verbindung = mysql.connector.connect(user='root', password='root', host='localhost', database='testdb')
 
         mycursor = verbindung.cursor()
@@ -120,15 +116,9 @@ class Asteroider(ShowBase):
 
         self.loadObject("models/planeNeu.egg", "textures/stars.jpg", 1)
 
-        qtList = self.qtBoxLogin()
-        print(qtList)
+        loginDaten = self.qtBox()
+        
 
-        #if qtList[2]:
-        #    self.login(qtList[0], qtList[1])
-        #elif not qtList[2]:
-        #    self.register(qtList[0], qtList[1])
-        #else:
-        #    print("lol")
 
             
         
