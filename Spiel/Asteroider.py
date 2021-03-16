@@ -1,4 +1,3 @@
-from logging import error
 from direct.showbase.ShowBase import ShowBase
 from panda3d.core import WindowProperties
 from PyQt5.QtWidgets import QApplication, QLabel, QLineEdit, QPushButton, QVBoxLayout, QWidget
@@ -32,7 +31,7 @@ class Asteroider(ShowBase):
             # Wenn der Button gedrückt wird, wird das sichtbare Fenster geschlossen, der Code läuft normal weiter
             self.app.quit()
 
-        self.button.clicked.connect(on_button_clicked())
+        self.button.clicked.connect(on_button_clicked)
 
 
         # Das oben erstellte Layout dem Fenster zuweisen und das Fenster öffnen
@@ -118,10 +117,10 @@ class Asteroider(ShowBase):
 
         loginDaten = self.qtBox()
         
-
-
-            
-        
+        if self.login(loginDaten[0], loginDaten[1]):
+            print("Erfolgreich eingeloggt")
+        else:
+            print("Fehler beim Einloggen")
         
 
 game = Asteroider()

@@ -8,6 +8,8 @@ username = input("Username: ")
 password = input("Passwort: ")
 
 mycursor = verbindung.cursor()
+
+# So geht es auch, die Query ist aber unübersichtlicher
 sqlBefehl = "SELECT pw FROM testtabelle WHERE username = '" + username + "';"
 mycursor.execute(sqlBefehl)
 

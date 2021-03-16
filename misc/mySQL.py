@@ -9,6 +9,7 @@ ausgabe = mycursor.fetchall()
 
 
 ausgabeRes = "Liste aller Ergebnisse: \n"
+# ausgabe ist eine Liste, und hier wird jeder Listeneintrag einzeln in den String ausgabeRes eingefügt
 for x in ausgabe:
     ausgabeRes += str(x) + "\n"
 
