@@ -61,8 +61,10 @@ class Asteroider(ShowBase):
     
     def login(self, username, pw):
 
+        # MySQL Verbindung initiieren
         verbindung = mysql.connector.connect(user='root', password='root', host='localhost', database='testdb')
 
+        # Passworthash von dem Username aus der Datenbank abfragen
         mycursor = verbindung.cursor()
         sqlBefehl = "SELECT pw FROM testtabelle WHERE username = %s"
         mycursor.execute(sqlBefehl, (username, ))
@@ -74,39 +76,48 @@ class Asteroider(ShowBase):
             print("Username nicht vergeben")
             return False
 
+        # Das kann man sicher auch ohne for machen, aber ich lasse es so weils funktioniert
         for x in pwHashed:
             # es gibt nur ein Ergebnis in einer Zeile, weil das beim SQL Befehl so festgelegt wurde
             pwHashed = x[0]
 
+        # Alles utf-8 encoden weil Bcrypt sehr wählerisch ist
         pw = pw.encode("utf-8")
         pwHashed = pwHashed.encode("utf-8")
 
+        # Übergebenes Passwort und Hash aus der Datenbank vergleichen und entsprechend true oder false liefern
+        # Vorher noch die Verbindung schließen
         if bcrypt.checkpw(pw, pwHashed):
+            verbindung.close()
             return True
         else:
+            verbindung.close
             print("Falsches Passwort")
             return False
     
     def register(self, username, pw):
+
+        # MySQL Verbindung initiieren
         verbindung = mysql.connector.connect(user='root', password='root', host='localhost', database='testdb')
 
+        # Schauen ob der Benutzername schon vergeben ist (ob das Ergebnis der Abfrage größer als 0 ist) und wenn ja false returnen
         mycursor = verbindung.cursor()
         sqlBefehl = "SELECT * FROM testtabelle WHERE username = %s"
         mycursor.execute(sqlBefehl, (username, ))
-
         mycursor.fetchall()
 
         if mycursor.rowcount:
             print("Username schon vergeben")
             return False
         
+        # Wenn der Benutzername nicht vergeben ist, dann den Passworthash generieren und zusammen mit dem Benutzernamen in die Datenbank einfügen
         pwHashed = bcrypt.hashpw(pw, bcrypt.gensalt())
         sqlBefehl = "INSERT INTO 'testtabelle' ('username', 'pw') VALUES ('%(username)s', '%(pwHashed)s');"
         if mycursor.execute(sqlBefehl, (username, pwHashed, )):
-            print("erfolgreich")
+            print("Erfolgreich registriert!")
             return True
         else:
-            print("fehler")
+            print("Fehler")
             return False
 
     def loadObject(self, texture=None, pos=LPoint3(0, 0), depth=SPRITE_POS, scale=1, transparency=True):
@@ -133,9 +144,12 @@ class Asteroider(ShowBase):
             texture = self.loader.loadTexture("textures/" + texture)
             obj.setTexture(texture, 1)
 
+        # Das Objekt returnen um es z.B. in eine Liste einzufügen
         return obj
 
     def spawnAsteroids(self, howmany):
+
+        # Zufällige Asteroids spawnen
         self.asteroids = []
 
         for i in range(howmany):
@@ -145,6 +159,7 @@ class Asteroider(ShowBase):
             self.asteroids.append(asteroid)
     
     def __init__(self):
+
         ShowBase.__init__(self)
 
         self.setProperties()
@@ -156,4 +171,7 @@ class Asteroider(ShowBase):
         
 
 game = Asteroider()
+# Eine Methode von ShowBase
 game.run()
+
+# Hier muss auch noch viiieeeles hinzugefügt werden (Bewegung z.B.)

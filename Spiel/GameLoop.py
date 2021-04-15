@@ -37,3 +37,5 @@ class GameLoop(ShowBase):
 
 myGameLoop = GameLoop()
 myGameLoop.run()
+
+# Bei weitem nicht fertig
