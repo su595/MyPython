@@ -1,13 +1,31 @@
+from random import randint
 from direct.showbase.ShowBase import ShowBase
-from panda3d.core import WindowProperties
+# LPoint3 und LVector3 sind "eigene Variablentypen" für Punkte und Vektoren
+from panda3d.core import WindowProperties, TransparencyAttrib, LPoint3, LVector3
 from PyQt5.QtWidgets import QApplication, QLabel, QLineEdit, QPushButton, QVBoxLayout, QWidget
 import mysql.connector
 import bcrypt
+
+# So ähnlich wie #define in C
+ASTEROIDER_SCALE = 1 # Default 1
+SPRITE_POS = 70 # 
+WINDOW_SIZE = 800, 600 #Größe des Fensters
+
 
 
 
 class Asteroider(ShowBase):
     
+
+    def setProperties(self):
+        # Alle möglichen Voreinstellungen machen...
+        properties = WindowProperties()
+        properties.setSize(WINDOW_SIZE)
+        properties.setTitle("Titel des Fensters")
+        self.win.requestProperties(properties)
+
+        self.disableMouse()
+        self.setBackgroundColor((0, 0, 0, 1))
 
     def qtBox(self):
 
@@ -91,36 +109,50 @@ class Asteroider(ShowBase):
             print("fehler")
             return False
 
-    def loadObject(self, dateipfadModel, dateipfadTextur, scale):
-        self.scene = self.loader.loadModel(dateipfadModel) 
-        # Reparent the model to render.
-        self.scene.reparentTo(self.camera)
-        # Apply scale and position transforms on the model.
-        self.scene.setScale(scale)
-        self.scene.setPos(0, 2, 0)
-        # Textur laden
-        self.texture = self.loader.loadTexture(dateipfadTextur)
-        self.scene.setTexture(self.texture, 1)
+    def loadObject(self, texture=None, pos=LPoint3(0, 0), depth=SPRITE_POS, scale=1, transparency=True):
+        # Jedes Objekt benutzt das plane-Model (weil 2D und so)
+        obj = self.loader.loadModel("models/plane.egg")
+        obj.reparentTo(self.camera)
 
+        # Anfangsposition und Sklalierung setzen
+        obj.setPos(pos.getX(), depth, pos.getY())
+        obj.setScale(scale)
+
+        # This tells Panda not to worry about the order that things are drawn in
+        # (ie. disable Z-testing).  This prevents an effect known as Z-fighting.
+        # Keine Ahnung was das genau macht, aber es schadet wohl nicht
+        obj.setBin("unsorted", 0)
+        obj.setDepthTest(False)
+        
+        if transparency: # Wenn transparency nicht ausdrücklich unterdrückt wird
+            # Damit z.B. transparente PNG Dateien im Spiel auch wirklich transparent sind
+            obj.setTransparency(TransparencyAttrib.MAlpha)
+
+        if texture: # Wenn eine Textur übergeben wurde
+            # Textur laden
+            texture = self.loader.loadTexture("textures/" + texture)
+            obj.setTexture(texture, 1)
+
+        return obj
+
+    def spawnAsteroids(self, howmany):
+        self.asteroids = []
+
+        for i in range(howmany):
+            asteroiderScale = ASTEROIDER_SCALE + randint(-2, 2)
+
+            asteroid = self.loadObject(texture="asteroid%d.png" % (randint(1, 3)), scale=asteroiderScale)
+            self.asteroids.append(asteroid)
+    
     def __init__(self):
         ShowBase.__init__(self)
 
-        properties = WindowProperties()
-        properties.setSize(800, 600)
-        properties.setTitle("Titel des Fensters")
-        self.win.requestProperties(properties)
+        self.setProperties()
 
-        self.disableMouse()
-        self.setBackgroundColor((0, 0, 0, 1))
+        # Hintergrund laden mit großer Scale, damit das Fenster komplett ausgefüllt ist
+        self.loadObject(texture="stars.jpg", depth=200, scale=140)
 
-        self.loadObject("models/planeNeu.egg", "textures/stars.jpg", 1)
-
-        loginDaten = self.qtBox()
-        
-        if self.login(loginDaten[0], loginDaten[1]):
-            print("Erfolgreich eingeloggt")
-        else:
-            print("Fehler beim Einloggen")
+        self.spawnAsteroids(5)
         
 
 game = Asteroider()

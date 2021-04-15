@@ -19,7 +19,7 @@ class LittleDBHelper():
 
         ausgabeRes = ""
         for x in ausgabe:
-            ausgabeRes+= str(x) + "\n"
+            ausgabeRes += str(x) + "\n"
         
         print(ausgabeRes)
 
