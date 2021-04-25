@@ -1,3 +1,4 @@
+# Man merkt dass ich das programmiert habe bevor ich Klassen kannte
 
 def Parameterform (tA, tB, tC): #Es werden drei Tuples mit jeweils 3 Werten, nämlich x1, x2 und x3 übergeben.
     x1A = tA[0]

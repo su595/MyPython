@@ -66,6 +66,7 @@ class Pyramide():
 
 class UserInterface():
     
+    
     def qtBox(self):
 
         self.app = QApplication([])
@@ -129,9 +130,11 @@ class UserInterface():
         if self.quaderC.isChecked():
             myQuader = Quader(self.längeLE.text(), self.breiteLE.text(), self.höheLE.text())
             self.txt1.setText(str(myQuader.getVolume()))
+
         if self.zylinderC.isChecked():
             myZylinder = Zylinder(self.breiteLE.text(), self.höheLE.text())
             self.txt2.setText(str(myZylinder.getVolume()))
+
         if self.pyramideC.isChecked():
             myPyramide = Pyramide(self.breiteLE.text(), self.höheLE.text())
             self.txt3.setText(str(myPyramide.getVolume()))

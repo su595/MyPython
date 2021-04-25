@@ -19,7 +19,7 @@ class GameLoop(ShowBase):
         self.zähler = 0
         self.myTask = self.taskMgr.add(self.taskLoop, "taskLoop")
     
-    def taskLoop(self, task):
+    def gameLoop(self, task):
         globalClock = ClockObject.getGlobalClock()
         self.dt = globalClock.getDt()
         self.showFPS(self.dt)

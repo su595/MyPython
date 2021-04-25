@@ -5,7 +5,7 @@ def kgVRechner(a, b): #kleinstesGemeinsamesVielfaches
     
     nA = 1
     nB = 1
-    while (a*nA)%b != 0: # Ich hab hier vergessen Kommentare hinzuzufügen ^^
+    while (a*nA)%b != 0: # Ich hab hier vergessen Kommentare hinzuzufügen ^^ Das werde ich im Nachhinein leider auch nicht mehr machen :(
         nA += 1
 
     while (b*nB)%a != 0:
