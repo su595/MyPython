@@ -7,52 +7,62 @@ from PIL import Image
 import sys
 
 
-LED_ARRAY_SIZE = 12,12 # width, height
-BAUDRATE = 115200 # make sure this is the same in the arduino script
-
-
 class LEDArrayCommunication():
 
 
     def __init__(self):
-        
-        self.establishSerialConnection()
+        pass
+        #self.UI()
 
-        self.UI()
+    def buttonFunction(self, filepath):
 
-    def doEverything(self, filepath):
+        imageList = self.imageToList(filepath, (10,10))
 
-        self.resizeAndConvertImage(filepath)
+        self.listToString(imageList, (10,10))     
 
-        self.sendList(self.imageList)     
+    def listToString(self, list, size):
+        # maybe sample half as often in the vertical direction
 
-    def sendList(self, listToBeSent):
-        
-        # create a string with the start 's'
-        stringToBeSent = "S"
+        imageString = ""
 
-        # iterate over the list
-        for x in range(len(listToBeSent)):
-            tempTuple = listToBeSent[x]
+        for i1 in range(int(size[0]/2)):
+            for i2 in range(size[1]):
 
-            # and iterate over each tuple in the list
-            for x2 in range(3):
-                # add every value in every tuple to the string seperated by a comma
-                stringToBeSent += str(tempTuple[x2])
-                stringToBeSent += ","
-
-        # add the end 'E' to the string
-        stringToBeSent += "E"
-
-        print(stringToBeSent)
-        
-        for x in range(len(stringToBeSent)):
-
-            self.arduino.write(bytes(stringToBeSent[x], "ASCII"))
+                thisPixel = list[i1*size[0]*2 + i2]
+                imageString += self.valueToChar(thisPixel)
             
-            # A sleep time so the Serial buffer of the Arduino doesn't get overwhelmed
-            # not neccessary at 9600 baud rate
-            # time.sleep(0.001)
+            imageString += "\n"
+        
+        print(imageString)
+        print(i1)
+        print(i2)
+            
+
+
+    def valueToChar(self, value):
+        # " .:-=+*#%@"
+        if(value < 26):
+            return "@"
+        if(value < 52):
+            return "%"
+        if(value < 77):
+            return "#"
+        if(value < 103):
+            return "*"
+        if(value < 128):
+            return "+"
+        if(value < 154):
+            return "="
+        if(value < 179):
+            return "-"
+        if(value < 205):
+            return ":"
+        if(value < 230):
+            return "."
+        if(value < 256):
+            return " "
+        
+        return "bigger than 255"
 
     def UI(self):
         
@@ -62,16 +72,16 @@ class LEDArrayCommunication():
         self.layout = QVBoxLayout()
 
         # set window title and window icon (arduino icon)
-        self.window.setWindowTitle("The hypermodern User Interface for my LED Array")
+        self.window.setWindowTitle("test")
         self.window.setWindowIcon(QtGui.QIcon("./misc/pics/icon.png"))
 
         # add different widgets to the layout (labels, a lineEdit and buttons)
-        self.layout.addWidget(QLabel("\nMay you be so kind as to enter a filepath to the .jpg image of your choice in the field below. "))
+        self.layout.addWidget(QLabel(".jpg filepath pls"))
         
         self.QTfilepath = QLineEdit()
         self.layout.addWidget(self.QTfilepath)
 
-        self.buttonGo = QPushButton("Let it be known that the user's desire is to have the rigorously selected image be displayed. \n Oh, ye spirits of the mystical serial communication, please, within your asynchronus powers, act upon this request with great urgency! ")
+        self.buttonGo = QPushButton("Go")
         self.layout.addWidget(self.buttonGo)
 
         self.layout.addWidget(QLabel("\n "))
@@ -94,8 +104,9 @@ class LEDArrayCommunication():
 
             # check if the last 4 chars are the correct file extension and then display a message and call doEverything()
             if(fileExtension == ".jpg"):
-                self.feedback.setText("Thou request shall be fulfilled")
-                self.doEverything(enteredFilepath)
+                self.feedback.setText("Successful")
+                self.buttonFunction(enteredFilepath)
+                
 
             # if the file extension is wrong or missing display this message
             else:
@@ -116,33 +127,24 @@ class LEDArrayCommunication():
         self.window.show()
         self.app.exec()
 
-    def resizeAndConvertImage(self, filepath):
+    def imageToList(self, filepath, size):
 
         newImage = Image.open(filepath)
-        newImage = newImage.resize((LED_ARRAY_SIZE))
+        newImage = newImage.resize(size)
+        newImage = newImage.convert(mode="L")
         newImage.show()
-        self.imageList = list(newImage.getdata())
+        imageList = newImage.getdata()
 
-    def establishSerialConnection(self):
-        
-        ports = serial.tools.list_ports.comports(include_links=False)
-
-        for port in ports :
-            print('Find port '+ port.device)
-
-        # connect to the found serial port, flush the buffers  
-        self.arduino = serial.Serial(port=port.device, baudrate=BAUDRATE, timeout=1)
-        
-        print('Connect ' + self.arduino.name)
-
-        # wait for the arduino to initialize
-        time.sleep(3)
+        return imageList
 
 
-LEDArrayCommunication()
+test = LEDArrayCommunication()
+
+list = test.imageToList("./misc/pics/red.jpg", (100,100))
+test.listToString(list, (100,100))
 
 # for debug:
-# doEverything("./misc/pics/sky.jpg")
+# i("./misc/pics/sky.jpg")
 
 # available pictures
 # ./misc/pics/red.jpg

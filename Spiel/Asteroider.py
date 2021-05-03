@@ -9,24 +9,32 @@ import bcrypt
 import sys
 from math import cos, pi, sin
 
+
 # So ähnlich wie #define in C++
-DEFAULT_DEPTH = 65
-WINDOW_SIZE = 800, 600 #Größe des Fensters
-SCREEN_X = 20 # 20/15 = 800/600
+MEME_TEXTURES = True       # ( ͡° ͜ʖ ͡°)
+DEFAULT_DEPTH = 65          # Default Tiefe in der alle Objekte liegen
+WINDOW_SIZE = 800, 600      # Größe des Fensters
+SCREEN_X = 20               # 20/15 = 800/600
 SCREEN_Y = 15
-NUMBER_OF_ASTEROIDS = 10 # Wieviele Asteroids im Spiel sind (vlt. bei größerem Window mehr Asteroids)
+NUMBER_OF_ASTEROIDS = 30    # Wieviele Asteroids im Spiel sind (vlt. bei größerem Window mehr Asteroids)
 ASTEROID_INIT_VELOCITY = 2 # Geschwindigkeit der Asteroids
-ASTEROIDER_SCALE = 3 # Größe der Asteroids
-ASTEROIDER_SCALE_VARIANCE = 1 # Um wieviel die ASTEROIDER_SCALE zufällig verändert wird
-SHIP_SCALE = 2 # Größe des Schiffes
-TURN_RATE = 360 # ein Faktor wie schnell sich das Schiff drehen kann
-ACCELERATION = 10 # ein Faktor wie schnell sich das Schiff beschleunigen kann
-MAX_VEL = 10 # die maximale Geschwindigkeit
-MAX_VEL_SQ = MAX_VEL**2 # quadrat davon
-DEG_TO_RAD = pi / 180 # Faktor um Degrees zu Radiant umzuwandeln
+ASTEROIDER_SCALE = 6        # Größe der Asteroids
+ASTEROIDER_SCALE_VARIANCE = 2 # Um wieviel die ASTEROIDER_SCALE zufällig verändert wird
+AST_SCALE_SMALLER = 0.5     # Um wieviel bei einem Treffer die Asteroids kleiner werden
+AST_MIN_SCALE = 3           # Ab wann der Asteroid verschwindet
+SHIP_SCALE = 2              # Größe des Schiffes
+TURN_RATE = 360             # ein Faktor wie schnell sich das Schiff drehen kann
+ACCELERATION = 50           # ein Faktor wie schnell sich das Schiff beschleunigen kann
+MAX_VEL = 6                 # die maximale Geschwindigkeit
+MAX_VEL_SQ = MAX_VEL**2     # quadrat davon
+DEG_TO_RAD = pi / 180       # Faktor um Degrees zu Radiant umzuwandeln
+BULLET_LIFE = 2             # Nach wie viel Zeit die Bullets verschwinden
+BULLET_REPEAT = 0.4         # Wie schnell man hintereinander schießen kann
+BULLET_SPEED = 20           # Wie schnell die Bullets sind
+BULLET_SIZE = 1             # Wie groß die Bullets sind
 
 class Asteroider(ShowBase):
-    
+
 
     def setProperties(self):
 
@@ -46,11 +54,39 @@ class Asteroider(ShowBase):
         textNodePath.setScale(0.06)
         textNodePath.setPos(LPoint3(0.9, 0, 0.9))
         
-    def showFPS(self, time):
-        self.fpsCounter += time
+    def initializeGameObjects(self):
+
+        # Hintergrund laden mit großer Scale, damit das Fenster komplett ausgefüllt ist
+        if MEME_TEXTURES:
+            self.loadObject("textures/school.jpg", depth=200, scale=140)
+        else:
+            self.loadObject("textures/stars.jpg", depth=200, scale=140)
+
+        # Schiff spawnen und Geschwindigkeit setzen
+        if MEME_TEXTURES:
+            self.ship = self.loadObject("textures/tentacle.png", scale=SHIP_SCALE)
+        else:
+            self.ship = self.loadObject("textures/ship.png", scale=SHIP_SCALE)
+
+        self.setVelocity(self.ship, LVector3.zero())
+
+        # Asteroids spawnen
+        self.asteroids = []
+        for i in range(NUMBER_OF_ASTEROIDS):
+            self.newAsteroid()
+
+        # Liste für Bullets deklarieren und Zeit bis zum nächsten Bullet
+        self.bulletList = []
+        self.nextBullet = 0.0
+
+        # Die Eingaben "accepten"
+        self.registerInputs()
+
+    def showFPS(self, dt):
+        self.fpsCounter += dt
         # Alle halbe Sekunde
         if self.fpsCounter >= 0.5:
-            self.textFPS.setText("FPS: " + str(int(60/time)))
+            self.textFPS.setText("FPS: " + str(int(60/dt)))
             self.fpsCounter = 0
 
     def setKey(self, key, val):
@@ -61,6 +97,26 @@ class Asteroider(ShowBase):
     
     def getVelocity(self, obj):
         return obj.getPythonTag("velocity")
+
+    def randomPos(self):
+        tempPoint = LPoint3()
+
+        # range generiert ein Tuple an Zahlen zwischen den gegebenen Endpunkten mit choice wird davon einer zufällig ausgewählt
+        # und dieser wird mit setX() dem Asteroid zugewiesen
+        tempPoint.setX(choice(tuple(range(-SCREEN_X, -5)) + tuple(range(5, SCREEN_X))))
+        tempPoint.setZ(choice(tuple(range(-SCREEN_Y, -5)) + tuple(range(5, SCREEN_Y))))
+
+        return tempPoint
+
+    def randomAngle(self):
+        # random angle in radians
+        return random() * 2 * pi
+
+    def setExpires(self, obj, expireTime):
+        obj.setPythonTag("expires", expireTime)
+    
+    def getExpires(self, obj):
+        return obj.getPythonTag("expires")
 
     def qtBox(self):
 
@@ -195,38 +251,106 @@ class Asteroider(ShowBase):
         self.accept("arrow_up-up",      self.setKey, ["accel", 0])
         self.accept("space",            self.setKey, ["fire", 1])
 
-    def setAsteroidInitialPosAndSpeed(self, obj):
+    def newAsteroid(self, pos="unset", velocity="unset", scale="unset"):
+
+        # load asteroid with 3 different textures and sizes
+        if(scale == "unset"):
+            scale = ASTEROIDER_SCALE + randint(-ASTEROIDER_SCALE_VARIANCE, ASTEROIDER_SCALE_VARIANCE)
+
+        if MEME_TEXTURES:
+            asteroid = self.loadObject(texture="textures/ahegao.png", scale=scale)
+        else:
+            asteroid = self.loadObject(texture="textures/asteroid%s.png" % randint(1,3), scale=scale)
+
+        # append the new Asteroid to the end of the list
+        self.asteroids.append(asteroid)
+
+        # if the position or velocity isn't set, make it random/standard
+        if (pos == "unset"):
+            pos = self.randomPos()
         
-        # range generiert ein Tuple an Zahlen zwischen den gegebenen Endpunkten mit choice wird davon einer zufällig ausgewählt
-        # und dieser wird mit setX() dem Asteroid zugewiesen
-        obj.setX(choice(tuple(range(-SCREEN_X, -5)) + tuple(range(5, SCREEN_X))))
-        obj.setZ(choice(tuple(range(-SCREEN_Y, -5)) + tuple(range(5, SCREEN_Y))))
+        if (velocity == "unset"):
+            direction = self.randomAngle()
+            velocity = LVector3(sin(direction), 0, cos(direction)) * ASTEROID_INIT_VELOCITY
+
+        # set the position, direction and velocity of the asteroid
+        asteroid.setX(pos.getX())
+        asteroid.setZ(pos.getZ())
+        self.setVelocity(asteroid, velocity)
+
+    def checkBulletAsteroidCollision(self):
         
+        for bullet in self.bulletList:
 
+            for i in range(len(self.asteroids)-1, -1, -1):
+                asteroid = self.asteroids[i]
 
-        # random angle in radians
-        orientation = random() * 2 * pi
+                # if the bullet and asteroid distance is less than the sum of their radii
+                # schedule the bullet for removal and handle the hit
+                if ((bullet.getPos() - asteroid.getPos()).lengthSquared() < (((bullet.getScale().getX() + asteroid.getScale().getX()) * .5) ** 2)):
+                    self.setExpires(bullet, 0)
+                    self.asteroidHit(i)
 
-        vector = LVector3(sin(orientation), 0, cos(orientation)) * ASTEROID_INIT_VELOCITY
+    def asteroidHit(self, index):
 
-        self.setVelocity(obj, vector)
+        # if the asteroid is too small remove the asteroid and exit the function
+        if(self.asteroids[index].getScale() < AST_MIN_SCALE):
+            self.asteroids[index].removeNode()
+            del self.asteroids[index]
+            return
+        
+        oldPos = LPoint3(self.asteroids[index].getX(), self.asteroids[index].getZ())
+        oldVel = self.getVelocity(self.asteroids[index])
+        oldScale = self.asteroids[index].getScale().getX()
 
-    def spawnAsteroids(self, howmany):
-        # spawn random asteroids (with 3 textures and different sizes)
-        # only call this at init, otherwise the asteroids spawned before will not be funtion (bc theyre no longer in the list)
+        # delete the old asteroid after its properties have been stored
+        self.asteroids[index].removeNode()
+        del self.asteroids[index]
 
-        self.asteroids = []
+        # make one Asteroid with the same velocity and one with negative velocity
+        for i in (-1, 1):
+            # skip the case where i is 0
+            if(i == 0):
+                break
 
-        for i in range(howmany):
-            asteroiderScale = ASTEROIDER_SCALE + randint(-ASTEROIDER_SCALE_VARIANCE, ASTEROIDER_SCALE_VARIANCE)
+            self.newAsteroid(pos=oldPos, velocity = oldVel * i, scale = oldScale * AST_SCALE_SMALLER)
 
-            asteroid = self.loadObject(texture="textures/asteroid%d.png" % (randint(1, 3)), scale=asteroiderScale)
+    def fire(self, task):
+        currentTime = task.time
 
-            self.asteroids.append(asteroid)
+        # Schauen ob genug Zeit vergangen ist, sonst direkt returnen
+        if(currentTime < self.nextBullet):
+            return
+        
+        # Schuss abfeuern
+        direction = DEG_TO_RAD * self.ship.getR()
+        pos = self.ship.getPos()
+        if MEME_TEXTURES:
+            bullet = self.loadObject("textures/youKnow.png", pos=pos, scale=BULLET_SIZE)
+        else:
+            bullet = self.loadObject("textures/bullet.png", pos=pos, scale=0.2)
+        relativeVel = self.getVelocity(self.ship) + (LVector3(sin(direction), 0, cos(direction)) * BULLET_SPEED)
+        self.setVelocity(bullet, relativeVel)
+        self.setExpires(bullet, currentTime + BULLET_LIFE)
 
-            for i in self.asteroids:
-                self.setAsteroidInitialPosAndSpeed(i)
-    
+        self.bulletList.append(bullet)
+
+        self.setKey("fire", 0)
+
+    def updateBullets(self, task, dt):
+        newBullets = []
+
+        # Für jedes Bullet die Position updaten, schauen, ob es expired ist, und dann entweder removen oder in der neuen Liste behalten
+        for i in self.bulletList:
+            self.updatePos(i, dt)
+
+            if self.getExpires(i) > task.time:
+                newBullets.append(i)
+            else:
+                i.removeNode()
+        
+        self.bulletList = newBullets
+
     def updatePos(self, obj, deltaT):
 
         velocity = self.getVelocity(obj)
@@ -247,7 +371,7 @@ class Asteroider(ShowBase):
         
         obj.setPos(newPosition)
 
-    def updateShip(self, dt):
+    def updateShip(self, task, dt):
 
         # Die Rotation unseres Schiffes
         direction = self.ship.getR()
@@ -271,6 +395,10 @@ class Asteroider(ShowBase):
             
             self.setVelocity(self.ship, newVel)
 
+
+        if self.keys["fire"]:
+            self.fire(task)
+
         self.updatePos(self.ship, dt)
 
     def gameLoop(self, task):
@@ -286,34 +414,29 @@ class Asteroider(ShowBase):
             self.updatePos(i, deltaT)
         
         # Update the ship
-        self.updateShip(deltaT)
+        self.updateShip(task, deltaT)
+
+        # Update Bullets
+        self.updateBullets(task, deltaT)
+
+        # check if bullets hit the asteroid
+        self.checkBulletAsteroidCollision()
 
         # Ein return Task.cont heißt, der taskMgr lässt den taskLoop continuen/weiterlaufen
         return Task.cont
   
     def __init__(self):
 
-        # Showbase und das Fenster einstellen
+        # Showbase und das Fenster konfigurieren
         ShowBase.__init__(self)
         self.setProperties()
 
-        # Hintergrund laden mit großer Scale, damit das Fenster komplett ausgefüllt ist
-        self.loadObject("textures/stars.jpg", depth=200, scale=140)
-
-        # Schiff spawnen und Geschwindigkeit setzen
-        self.ship = self.loadObject("textures/ship.png", scale=SHIP_SCALE)
-        self.setVelocity(self.ship, LVector3.zero())
-
-        # Asteroids spawnen
-        self.spawnAsteroids(NUMBER_OF_ASTEROIDS)
-
-        # Die Eingaben "accepten"
-        self.registerInputs()
-
+        # Alle Objekte im Spiel initialisieren
+        self.initializeGameObjects()
 
         # GameLoop starten
         self.gameTask = self.taskMgr.add(self.gameLoop, "gameLoop")
-        
+
 
 game = Asteroider()
 # Eine Methode von ShowBase
