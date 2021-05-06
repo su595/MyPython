@@ -140,7 +140,7 @@ class LEDArrayCommunication():
 
 test = LEDArrayCommunication()
 
-list = test.imageToList("./misc/pics/red.jpg", (100,100))
+list = test.imageToList("./misc/pics/sky.jpg", (100,100))
 test.listToString(list, (100,100))
 
 # for debug:

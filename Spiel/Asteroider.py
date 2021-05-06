@@ -7,21 +7,22 @@ from PyQt5.QtWidgets import QApplication, QLabel, QLineEdit, QPushButton, QVBoxL
 import mysql.connector
 import bcrypt
 import sys
+
 from math import cos, pi, sin
 
 
 # So ähnlich wie #define in C++
-MEME_TEXTURES = True       # ( ͡° ͜ʖ ͡°)
+MEME_TEXTURES = False       # ( ͡° ͜ʖ ͡°)
 DEFAULT_DEPTH = 65          # Default Tiefe in der alle Objekte liegen
 WINDOW_SIZE = 800, 600      # Größe des Fensters
 SCREEN_X = 20               # 20/15 = 800/600
 SCREEN_Y = 15
-NUMBER_OF_ASTEROIDS = 30    # Wieviele Asteroids im Spiel sind (vlt. bei größerem Window mehr Asteroids)
-ASTEROID_INIT_VELOCITY = 2 # Geschwindigkeit der Asteroids
-ASTEROIDER_SCALE = 6        # Größe der Asteroids
+NUMBER_OF_ASTEROIDS = 5    # Wieviele Asteroids am Anfang im Spiel sind (vlt. bei größerem Window mehr Asteroids)
+AST_INIT_VELOCITY = 0.5     # Geschwindigkeit der Asteroids
+ASTEROIDER_SCALE = 4        # Größe der Asteroids
 ASTEROIDER_SCALE_VARIANCE = 2 # Um wieviel die ASTEROIDER_SCALE zufällig verändert wird
 AST_SCALE_SMALLER = 0.5     # Um wieviel bei einem Treffer die Asteroids kleiner werden
-AST_MIN_SCALE = 3           # Ab wann der Asteroid verschwindet
+AST_MIN_SCALE = 4           # Ab wann der Asteroid verschwindet
 SHIP_SCALE = 2              # Größe des Schiffes
 TURN_RATE = 360             # ein Faktor wie schnell sich das Schiff drehen kann
 ACCELERATION = 50           # ein Faktor wie schnell sich das Schiff beschleunigen kann
@@ -32,6 +33,7 @@ BULLET_LIFE = 2             # Nach wie viel Zeit die Bullets verschwinden
 BULLET_REPEAT = 0.4         # Wie schnell man hintereinander schießen kann
 BULLET_SPEED = 20           # Wie schnell die Bullets sind
 BULLET_SIZE = 1             # Wie groß die Bullets sind
+
 
 class Asteroider(ShowBase):
 
@@ -74,14 +76,42 @@ class Asteroider(ShowBase):
         self.asteroids = []
         for i in range(NUMBER_OF_ASTEROIDS):
             self.newAsteroid()
-
+        
         # Liste für Bullets deklarieren und Zeit bis zum nächsten Bullet
         self.bulletList = []
         self.nextBullet = 0.0
 
-        # Die Eingaben "accepten"
+        # Variablen und textNodes für Level und Score deklarieren
+        self.levelNode = TextNode("Level ")
+        textNodePath = aspect2d.attachNewNode(self.levelNode)
+        textNodePath.setScale(0.06)
+        textNodePath.setPos(LPoint3(-1.3, 0, 0.9))
+        self.scoreNode = TextNode("Level ")
+        textNodePath = aspect2d.attachNewNode(self.scoreNode)
+        textNodePath.setScale(0.06)
+        textNodePath.setPos(LPoint3(-1.3, 0, 0.8))
+
+        self.level = 1
+        self.score = 0
+
+
         self.registerInputs()
 
+    def resetGame(self):
+        # reset the ship
+        self.ship.setR(0)
+        self.ship.setX(0)
+        self.ship.setZ(0)
+        self.ship.show()
+
+        # reset level and score
+        self.level = 1
+        self.score = 0
+
+        # spawn new asteroids
+        for i in range(NUMBER_OF_ASTEROIDS):
+            self.newAsteroid()
+                
     def showFPS(self, dt):
         self.fpsCounter += dt
         # Alle halbe Sekunde
@@ -133,14 +163,21 @@ class Asteroider(ShowBase):
         self.layout.addWidget(self.pwLE)
         # Box für Login oder Registrieren
         # und ein Login Knopf
-        self.button = QPushButton("Los!")
-        self.layout.addWidget(self.button)
+        self.login = QPushButton("Login")
+        self.layout.addWidget(self.login)
+        self.answerLabel = QLabel("\n")
+        self.layout.addWidget(self.answerLabel)
 
         def on_button_clicked():
-            # Wenn der Button gedrückt wird, wird das sichtbare Fenster geschlossen, der Code läuft normal weiter
-            self.app.quit()
+            succ = self.login(self.usernameLE.text(), self.pwLE.text())
 
-        self.button.clicked.connect(on_button_clicked)
+            self.answerLabel.setText(self.loginResponse)
+            if(succ):
+                pass
+                
+
+
+        self.login.clicked.connect(on_button_clicked)
 
 
         # Das oben erstellte Layout dem Fenster zuweisen und das Fenster öffnen
@@ -148,9 +185,10 @@ class Asteroider(ShowBase):
         self.window.show()
         self.app.exec()
 
-        return list((self.usernameLE.text(), self.pwLE.text()))
+        return list(())
     
     def login(self, username, pw):
+        self.loginResponse = "nichts"
 
         # MySQL Verbindung initiieren
         verbindung = mysql.connector.connect(user='root', password='root', host='localhost', database='testdb')
@@ -164,7 +202,7 @@ class Asteroider(ShowBase):
 
         # Wenn das Ergebnis leer ist
         if not mycursor.rowcount:
-            print("Username nicht vergeben")
+            self.loginResponse = "Username nicht vergeben"
             return False
 
         # Das kann man sicher auch ohne for machen, aber ich lasse es so weils funktioniert
@@ -180,11 +218,12 @@ class Asteroider(ShowBase):
         # Vorher noch die Verbindung schließen
         if bcrypt.checkpw(pw, pwHashed):
             verbindung.close()
+            self.loginResponse = "Erfolgreich"
             return True
-        else:
-            verbindung.close
-            print("Falsches Passwort")
-            return False
+        
+        verbindung.close
+        self.loginResponse = "Falsches Passwort"
+        return False
     
     def register(self, username, pw):
 
@@ -230,10 +269,9 @@ class Asteroider(ShowBase):
             # Damit z.B. transparente PNG Dateien im Spiel auch wirklich transparent sind
             obj.setTransparency(TransparencyAttrib.MAlpha)
 
-        if texture: # Wenn eine Textur übergeben wurde
-            # Textur laden
-            texture = self.loader.loadTexture(texture)
-            obj.setTexture(texture, 1)
+        # Textur laden und dem Objekt zuweisen
+        texture = self.loader.loadTexture(texture)
+        obj.setTexture(texture, 1)
 
         # Das Objekt returnen um es z.B. in eine Liste einzufügen
         return obj
@@ -251,12 +289,13 @@ class Asteroider(ShowBase):
         self.accept("arrow_up-up",      self.setKey, ["accel", 0])
         self.accept("space",            self.setKey, ["fire", 1])
 
-    def newAsteroid(self, pos="unset", velocity="unset", scale="unset"):
+    def newAsteroid(self, pos="unset", vector="unset", scale="unset", speed=AST_INIT_VELOCITY):
 
-        # load asteroid with 3 different textures and sizes
+        # make a varied scale if unset
         if(scale == "unset"):
             scale = ASTEROIDER_SCALE + randint(-ASTEROIDER_SCALE_VARIANCE, ASTEROIDER_SCALE_VARIANCE)
 
+        # load the object with the determined scale and texture
         if MEME_TEXTURES:
             asteroid = self.loadObject(texture="textures/ahegao.png", scale=scale)
         else:
@@ -269,14 +308,14 @@ class Asteroider(ShowBase):
         if (pos == "unset"):
             pos = self.randomPos()
         
-        if (velocity == "unset"):
+        if (vector == "unset"):
             direction = self.randomAngle()
-            velocity = LVector3(sin(direction), 0, cos(direction)) * ASTEROID_INIT_VELOCITY
+            vector = LVector3(sin(direction), 0, cos(direction)) * speed
 
-        # set the position, direction and velocity of the asteroid
+        # set the position, direction and vector of the asteroid
         asteroid.setX(pos.getX())
         asteroid.setZ(pos.getZ())
-        self.setVelocity(asteroid, velocity)
+        self.setVelocity(asteroid, vector)
 
     def checkBulletAsteroidCollision(self):
         
@@ -286,10 +325,36 @@ class Asteroider(ShowBase):
                 asteroid = self.asteroids[i]
 
                 # if the bullet and asteroid distance is less than the sum of their radii
-                # schedule the bullet for removal and handle the hit
-                if ((bullet.getPos() - asteroid.getPos()).lengthSquared() < (((bullet.getScale().getX() + asteroid.getScale().getX()) * .5) ** 2)):
+                if ((bullet.getPos() - asteroid.getPos()).lengthSquared() < (((bullet.getScale().getX() + asteroid.getScale().getX()) * .6) ** 2)):
+                    # make it that the bullet gets removed in the next gameloop and handle the hit
                     self.setExpires(bullet, 0)
                     self.asteroidHit(i)
+
+    def checkShipCollision(self):
+        # Now we do the same collision pass for the ship
+        shipSize = self.ship.getScale().getX()
+        shipPos = self.ship.getPos()
+
+        for asteroid in self.asteroids:
+
+            # Same sphere collision check for the ship vs. the asteroid
+            if ((shipPos - asteroid.getPos()).lengthSquared() <
+                    (((shipSize + asteroid.getScale().getX()) * .4) ** 2)):
+                
+                # If there is a hit, clear the screen and schedule a restart
+                self.alive = False         # Ship is no longer alive
+                # Remove every object in asteroids and bullets from the scene
+                for i in self.asteroids + self.bulletList:
+                    i.removeNode()
+                
+                self.asteroids = []
+                self.bulletList = []          # Clear the bullet list
+                self.ship.hide()           # Hide the ship
+                # Reset the velocity
+                self.setVelocity(self.ship, LVector3(0, 0, 0))
+                self.resetGame()
+
+                break
 
     def asteroidHit(self, index):
 
@@ -297,6 +362,13 @@ class Asteroider(ShowBase):
         if(self.asteroids[index].getScale() < AST_MIN_SCALE):
             self.asteroids[index].removeNode()
             del self.asteroids[index]
+
+            self.score += 200
+            # if there are no asteroids left
+            if len(self.asteroids) == 0:
+                self.score += 1000
+                self.levelUp()
+
             return
         
         oldPos = LPoint3(self.asteroids[index].getX(), self.asteroids[index].getZ())
@@ -307,13 +379,11 @@ class Asteroider(ShowBase):
         self.asteroids[index].removeNode()
         del self.asteroids[index]
 
+        self.score += 100
+
         # make one Asteroid with the same velocity and one with negative velocity
         for i in (-1, 1):
-            # skip the case where i is 0
-            if(i == 0):
-                break
-
-            self.newAsteroid(pos=oldPos, velocity = oldVel * i, scale = oldScale * AST_SCALE_SMALLER)
+            self.newAsteroid(pos=oldPos, vector=oldVel * i, scale=oldScale * AST_SCALE_SMALLER)
 
     def fire(self, task):
         currentTime = task.time
@@ -401,6 +471,14 @@ class Asteroider(ShowBase):
 
         self.updatePos(self.ship, dt)
 
+    def levelUp(self):
+
+        self.level += 1
+
+        # spawn more asteroids with a higher velocity
+        for i in range(NUMBER_OF_ASTEROIDS + self.level * 2):
+            self.newAsteroid(speed=AST_INIT_VELOCITY + self.level * 0.2)
+
     def gameLoop(self, task):
 
         # get the time since the last loop (since globalClock was last updated)
@@ -410,8 +488,8 @@ class Asteroider(ShowBase):
 
 
         # Update position of the asteroids
-        for i in self.asteroids:
-            self.updatePos(i, deltaT)
+        for asteroid in self.asteroids:
+            self.updatePos(asteroid, deltaT)
         
         # Update the ship
         self.updateShip(task, deltaT)
@@ -419,8 +497,14 @@ class Asteroider(ShowBase):
         # Update Bullets
         self.updateBullets(task, deltaT)
 
-        # check if bullets hit the asteroid
+        # check if bullets hit the asteroids and if ship hit asteroids
         self.checkBulletAsteroidCollision()
+        self.checkShipCollision()
+
+        # update the textNodes
+        self.scoreNode.setText("Score: " + str(self.score))
+        self.levelNode.setText("Level: " + str(self.level))
+
 
         # Ein return Task.cont heißt, der taskMgr lässt den taskLoop continuen/weiterlaufen
         return Task.cont
