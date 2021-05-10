@@ -1,7 +1,7 @@
-from PyQt5.QtWidgets import QApplication, QLabel, QLineEdit, QPushButton, QVBoxLayout, QWidget, QCheckBox
+from PyQt5.QtWidgets import QApplication, QLabel, QLineEdit, QPushButton, QVBoxLayout, QWidget
 
 
-class astabKipp():
+class astabileKippstufeRechner():
     
     def qtBox(self):
 
@@ -79,6 +79,8 @@ class astabKipp():
         self.values["C2"] = c2
 
     def smallFloatString(self, flt):
+
+        # das ist alles ein schlimm zusammengeklatscher Workaround der zwar funktioniert aber bitte niemals nochmal verwenden
         
         fltString = str(flt)
 
@@ -93,13 +95,6 @@ class astabKipp():
         mantissa += fltString[3]
         mantissa = float(mantissa)
 
-        # this adds the correspondending SI prefix and scales the mantissa
-        if exponent == -1:
-            return str(round(mantissa * 100, 2)) + "m"
-        if exponent == -2:
-            return str(round(mantissa * 10, 2)) + "m"
-        if exponent == -3:
-            return str(round(mantissa * 1, 2)) + "m"
         if exponent == -4:
             return str(round(mantissa * 100, 2)) + "µ"
         if exponent == -5:
@@ -120,7 +115,7 @@ class astabKipp():
             return str(round(mantissa * 1, 2)) + "p"
 
         # if the float is out of the supported range
-        return str(flt)
+        return str(round(flt, 5))
 
     def __init__(self):
 
@@ -129,4 +124,4 @@ class astabKipp():
         self.qtBox()
         
 
-start = astabKipp()
+start = astabileKippstufeRechner()

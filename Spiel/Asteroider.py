@@ -7,7 +7,6 @@ from PyQt5.QtWidgets import QApplication, QLabel, QLineEdit, QPushButton, QVBoxL
 import mysql.connector
 import bcrypt
 import sys
-
 from math import cos, pi, sin
 
 
