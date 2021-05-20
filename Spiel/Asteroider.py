@@ -1,6 +1,7 @@
 from random import choice, randint, random
+from re import S
 from direct.showbase.ShowBase import ShowBase
-# LPoint3 und LVector3 sind Objekte für Punkte und Vektoren
+# LPoint3 und LVector3 sind Panda3d-Objekte für Punkte und Vektoren
 from panda3d.core import WindowProperties, TransparencyAttrib, LPoint3, LVector3, ClockObject, TextNode
 from direct.task.Task import Task
 from PyQt5.QtWidgets import QApplication, QLabel, QLineEdit, QPushButton, QVBoxLayout, QWidget, qDrawBorderPixmap
@@ -8,40 +9,16 @@ import mysql.connector
 import bcrypt
 import sys
 from math import cos, pi, sin
-
-
-# So ähnlich wie #define in C++
-MEME_TEXTURES = False       # ( ͡° ͜ʖ ͡°)
-DEFAULT_DEPTH = 65          # Default Tiefe in der alle Objekte liegen
-WINDOW_SIZE = 800, 600      # Größe des Fensters
-SCREEN_X = 20               # 20/15 = 800/600
-SCREEN_Y = 15
-NUMBER_OF_ASTEROIDS = 5    # Wieviele Asteroids am Anfang im Spiel sind (vlt. bei größerem Window mehr Asteroids)
-AST_INIT_VELOCITY = 0.5     # Geschwindigkeit der Asteroids
-ASTEROIDER_SCALE = 4        # Größe der Asteroids
-ASTEROIDER_SCALE_VARIANCE = 2 # Um wieviel die ASTEROIDER_SCALE zufällig verändert wird
-AST_SCALE_SMALLER = 0.5     # Um wieviel bei einem Treffer die Asteroids kleiner werden
-AST_MIN_SCALE = 4           # Ab wann der Asteroid verschwindet
-SHIP_SCALE = 2              # Größe des Schiffes
-TURN_RATE = 360             # ein Faktor wie schnell sich das Schiff drehen kann
-ACCELERATION = 50           # ein Faktor wie schnell sich das Schiff beschleunigen kann
-MAX_VEL = 6                 # die maximale Geschwindigkeit
-MAX_VEL_SQ = MAX_VEL**2     # quadrat davon
-DEG_TO_RAD = pi / 180       # Faktor um Degrees zu Radiant umzuwandeln
-BULLET_LIFE = 2             # Nach wie viel Zeit die Bullets verschwinden
-BULLET_REPEAT = 0.4         # Wie schnell man hintereinander schießen kann
-BULLET_SPEED = 20           # Wie schnell die Bullets sind
-BULLET_SIZE = 1             # Wie groß die Bullets sind
+from yaml import load, dump
 
 
 class Asteroider(ShowBase):
-
 
     def setProperties(self):
 
         # set properties of the window
         properties = WindowProperties()
-        properties.setSize(WINDOW_SIZE)
+        properties.setSize(self.WINDOW_SIZE[0], self.WINDOW_SIZE[1])
         properties.setTitle("Titel des Fensters")
         self.win.requestProperties(properties)
 
@@ -58,43 +35,91 @@ class Asteroider(ShowBase):
     def initializeGameObjects(self):
 
         # Hintergrund laden mit großer Scale, damit das Fenster komplett ausgefüllt ist
-        if MEME_TEXTURES:
+        if self.MEME_TEXTURES:
             self.loadObject("textures/school.jpg", depth=200, scale=140)
         else:
             self.loadObject("textures/stars.jpg", depth=200, scale=140)
 
         # Schiff spawnen und Geschwindigkeit setzen
-        if MEME_TEXTURES:
-            self.ship = self.loadObject("textures/tentacle.png", scale=SHIP_SCALE)
+        if self.MEME_TEXTURES:
+            self.ship = self.loadObject("textures/tentacle.png", scale=self.SHIP_SCALE)
         else:
-            self.ship = self.loadObject("textures/ship.png", scale=SHIP_SCALE)
+            self.ship = self.loadObject("textures/ship.png", scale=self.SHIP_SCALE)
 
         self.setVelocity(self.ship, LVector3.zero())
 
         # Asteroids spawnen
         self.asteroids = []
-        for i in range(NUMBER_OF_ASTEROIDS):
+        for i in range(self.NUMBER_OF_ASTEROIDS):
             self.newAsteroid()
         
         # Liste für Bullets deklarieren und Zeit bis zum nächsten Bullet
         self.bulletList = []
         self.nextBullet = 0.0
 
-        # Variablen und textNodes für Level und Score deklarieren
+        # Variablen und textNodes für Player, Level und Score erstellen
+        self.playerNode = TextNode("Spieler ")
+        textNodePath = aspect2d.attachNewNode(self.playerNode)
+        textNodePath.setScale(0.06)
+        textNodePath.setPos(LPoint3(-1.3, 0, 0.95))
         self.levelNode = TextNode("Level ")
         textNodePath = aspect2d.attachNewNode(self.levelNode)
         textNodePath.setScale(0.06)
-        textNodePath.setPos(LPoint3(-1.3, 0, 0.9))
-        self.scoreNode = TextNode("Level ")
+        textNodePath.setPos(LPoint3(-1.3, 0, 0.85))
+        self.scoreNode = TextNode("Score ")
         textNodePath = aspect2d.attachNewNode(self.scoreNode)
         textNodePath.setScale(0.06)
-        textNodePath.setPos(LPoint3(-1.3, 0, 0.8))
+        textNodePath.setPos(LPoint3(-1.3, 0, 0.75))
 
         self.level = 1
         self.score = 0
-
+        
+        # Einmal die Text Nodes aktualisieren
+        # bei playerNode eventuelle Exceptions ignorieren und weiterlaufen
+        try:
+            self.playerNode.setText("Spieler: " + self.player)
+        except:
+            pass
+        self.scoreNode.setText("Score: " + str(self.score))
+        self.levelNode.setText("Level: " + str(self.level))
 
         self.registerInputs()
+
+        self.myMusic()
+
+    def myMusic(self):
+        music = self.loader.loadMusic("sounds/nete.ogg")
+        music.setLoop(True)
+        music.setVolume(0.075)
+        music.play()
+
+    def loadConfig(self):
+        with open("Spiel/config.yml", "r") as ymlfile:
+            config = load(ymlfile)
+        
+        # Hier speichere ich alle Einstellungen aus der config in konstanten, damit der code lesbar bleibt
+        self.MY_SQL = config["mysql"]
+        self.MEME_TEXTURES = config["game"]["meme_textures"]                    # ( ͡° ͜ʖ ͡°)
+        self.DEFAULT_DEPTH = config["game"]["default_depth"]                    # Default Tiefe in der alle Objekte liegen
+        self.WINDOW_SIZE = config["window"]["size"]                             # Größe des Fensters
+        self.SCREEN_X = config["window"]["screen_x"]                            # 20/15 = 800/600
+        self.SCREEN_Y = config["window"]["screen_y"]
+        self.NUMBER_OF_ASTEROIDS = config["game"]["asteroid"]["number"]         # Wieviele Asteroids am Anfang im Spiel sind (vlt. bei größerem Window mehr Asteroids)
+        self.AST_INIT_VELOCITY = config["game"]["asteroid"]["velocity"]         # Geschwindigkeit der Asteroids
+        self.AST_SCALE = config["game"]["asteroid"]["scale"]                    # Größe der Asteroids
+        self.AST_SCALE_VARIANCE = config["game"]["asteroid"]["scale_variance"]  # Um wieviel die ASTEROIDER_SCALE zufällig verändert wird
+        self.AST_SCALE_SMALLER = config["game"]["asteroid"]["shrink_hit"]       # Um wieviel bei einem Treffer die Asteroids kleiner werden
+        self.AST_MIN_SCALE = config["game"]["asteroid"]["min_scale"]            # Ab wann der Asteroid verschwindet
+        self.SHIP_SCALE = config["game"]["ship"]["scale"]                       # Größe des Schiffes
+        self.TURN_RATE = config["game"]["ship"]["turn_rate"]                    # ein Faktor wie schnell sich das Schiff drehen kann
+        self.ACCELERATION = config["game"]["ship"]["acceleration"]              # ein Faktor wie schnell sich das Schiff beschleunigen kann
+        self.MAX_VEL = config["game"]["ship"]["max_velocity"]                   # die maximale Geschwindigkeit
+        self.MAX_VEL_SQ = self.MAX_VEL**2                                       
+        self.DEG_TO_RAD = pi / 180                                              # Faktor um Degrees zu Radiant umzuwandeln
+        self.BULLET_LIFE = config["game"]["bullet"]["life"]                     # Nach wie viel Zeit die Bullets verschwinden
+        self.BULLET_REPEAT = config["game"]["bullet"]["repeat"]                 # Wie schnell man hintereinander schießen kann
+        self.BULLET_SPEED = config["game"]["bullet"]["speed"]                   # Wie schnell die Bullets sind
+        self.BULLET_SIZE = config["game"]["bullet"]["size"]                     # Wie groß die Bullets sind
 
     def resetGame(self):
         # reset the ship
@@ -107,8 +132,11 @@ class Asteroider(ShowBase):
         self.level = 1
         self.score = 0
 
-        # spawn new asteroids
-        for i in range(NUMBER_OF_ASTEROIDS):
+        self.scoreNode.setText("Score: " + str(self.score))
+        self.levelNode.setText("Level: " + str(self.level))
+
+        # spawn new initial asteroids
+        for i in range(self.NUMBER_OF_ASTEROIDS):
             self.newAsteroid()
                 
     def showFPS(self, dt):
@@ -132,8 +160,8 @@ class Asteroider(ShowBase):
 
         # range generiert ein Tuple an Zahlen zwischen den gegebenen Endpunkten mit choice wird davon einer zufällig ausgewählt
         # und dieser wird mit setX() dem Asteroid zugewiesen
-        tempPoint.setX(choice(tuple(range(-SCREEN_X, -5)) + tuple(range(5, SCREEN_X))))
-        tempPoint.setZ(choice(tuple(range(-SCREEN_Y, -5)) + tuple(range(5, SCREEN_Y))))
+        tempPoint.setX(choice(tuple(range(-self.SCREEN_X, -5)) + tuple(range(5, self.SCREEN_X))))
+        tempPoint.setZ(choice(tuple(range(-self.SCREEN_Y, -5)) + tuple(range(5, self.SCREEN_Y))))
 
         return tempPoint
 
@@ -160,41 +188,49 @@ class Asteroider(ShowBase):
         self.layout.addWidget(QLabel("Password: "))
         self.pwLE = QLineEdit()
         self.layout.addWidget(self.pwLE)
-        # Box für Login oder Registrieren
-        # und ein Login Knopf
-        self.login = QPushButton("Login")
-        self.layout.addWidget(self.login)
+        # Button für Login oder Registrieren
+        self.loginButton = QPushButton("Login")
+        self.layout.addWidget(self.loginButton)
+        self.regButton = QPushButton("Registrieren")
+        self.layout.addWidget(self.regButton)
         self.answerLabel = QLabel("\n")
         self.layout.addWidget(self.answerLabel)
 
-        def on_button_clicked():
+        def on_button_clicked_login():
             succ = self.login(self.usernameLE.text(), self.pwLE.text())
 
             self.answerLabel.setText(self.loginResponse)
-            if(succ):
-                pass
+            
+            # if the login is successful, exit qt app to the game
+            if succ:
+                self.app.exit()
                 
+        def on_button_clicked_reg():
+            succ = self.register(self.usernameLE.text(), self.pwLE.text())
 
+            self.answerLabel.setText(self.loginResponse)
+            
+            if succ:
+                self.app.exit()
 
-        self.login.clicked.connect(on_button_clicked)
+        self.loginButton.clicked.connect(on_button_clicked_login)
+        self.regButton.clicked.connect(on_button_clicked_reg)
 
 
         # Das oben erstellte Layout dem Fenster zuweisen und das Fenster öffnen
         self.window.setLayout(self.layout)
         self.window.show()
         self.app.exec()
-
-        return list(())
     
     def login(self, username, pw):
         self.loginResponse = "nichts"
 
         # MySQL Verbindung initiieren
-        verbindung = mysql.connector.connect(user='root', password='root', host='localhost', database='testdb')
+        verbindung = mysql.connector.connect(user=self.MY_SQL["user"], password=self.MY_SQL["password"], host=self.MY_SQL["host"], database=self.MY_SQL["db"])
 
         # Passworthash von dem Username aus der Datenbank abfragen
         mycursor = verbindung.cursor()
-        sqlBefehl = "SELECT pw FROM testtabelle WHERE username = %s"
+        sqlBefehl = "SELECT pw FROM astlogin WHERE username = %s"
         mycursor.execute(sqlBefehl, (username, ))
 
         pwHashed = mycursor.fetchall()
@@ -218,6 +254,7 @@ class Asteroider(ShowBase):
         if bcrypt.checkpw(pw, pwHashed):
             verbindung.close()
             self.loginResponse = "Erfolgreich"
+            self.player = username
             return True
         
         verbindung.close
@@ -227,29 +264,42 @@ class Asteroider(ShowBase):
     def register(self, username, pw):
 
         # MySQL Verbindung initiieren
-        verbindung = mysql.connector.connect(user='root', password='root', host='localhost', database='testdb')
+        verbindung = mysql.connector.connect(user=self.MY_SQL["user"], password=self.MY_SQL["password"], host=self.MY_SQL["host"], database=self.MY_SQL["db"])
+
 
         # Schauen ob der Benutzername schon vergeben ist (ob das Ergebnis der Abfrage größer als 0 ist) und wenn ja false returnen
         mycursor = verbindung.cursor()
-        sqlBefehl = "SELECT * FROM testtabelle WHERE username = %s"
+        sqlBefehl = "SELECT * FROM astlogin WHERE username = %s"
         mycursor.execute(sqlBefehl, (username, ))
         mycursor.fetchall()
 
         if mycursor.rowcount:
-            print("Username schon vergeben")
+            self.loginResponse = "Username schon vergeben"
             return False
         
+        pw = pw.encode("utf-8")
+        print(username)
+
         # Wenn der Benutzername nicht vergeben ist, dann den Passworthash generieren und zusammen mit dem Benutzernamen in die Datenbank einfügen
         pwHashed = bcrypt.hashpw(pw, bcrypt.gensalt())
-        sqlBefehl = "INSERT INTO 'testtabelle' ('username', 'pw') VALUES ('%(username)s', '%(pwHashed)s');"
-        if mycursor.execute(sqlBefehl, (username, pwHashed, )):
-            print("Erfolgreich registriert!")
+        print(pwHashed)
+
+        sqlBefehl = "INSERT INTO astlogin (username, pw) VALUES ('"+ username +"', '"+ str(pwHashed, "utf-8") +"')"
+        print(sqlBefehl)
+        try:
+            mycursor.execute(sqlBefehl)
+            self.loginResponse = "Erfolgreich registriert!"
+            self.player = username
             return True
-        else:
-            print("Fehler")
+        except:
+            self.loginResponse = "Fehler"
             return False
 
-    def loadObject(self, texture, pos=LPoint3(0,0), depth=DEFAULT_DEPTH, scale=1, transparency=True):
+    def loadObject(self, texture, pos=LPoint3(0,0), depth="urMom", scale=1, transparency=True):
+
+        # workaround, ich kann kein self.DEFAULT_DEPTH direkt übergeben
+        if depth == "urMom": depth = self.DEFAULT_DEPTH
+
         # Jedes Objekt benutzt das plane-Model (weil 2D und so)
         obj = self.loader.loadModel("models/plane.egg")
         obj.reparentTo(self.camera)
@@ -288,14 +338,17 @@ class Asteroider(ShowBase):
         self.accept("arrow_up-up",      self.setKey, ["accel", 0])
         self.accept("space",            self.setKey, ["fire", 1])
 
-    def newAsteroid(self, pos="unset", vector="unset", scale="unset", speed=AST_INIT_VELOCITY):
+    def newAsteroid(self, pos="unset", vector="unset", scale="unset", speed="self.IdontCare"):
+
+        # gleicher workaround wie bei loadObject
+        if speed == "self.IdontCare": speed = self.AST_INIT_VELOCITY
 
         # make a varied scale if unset
         if(scale == "unset"):
-            scale = ASTEROIDER_SCALE + randint(-ASTEROIDER_SCALE_VARIANCE, ASTEROIDER_SCALE_VARIANCE)
+            scale = self.AST_SCALE + randint(-self.AST_SCALE_VARIANCE, self.AST_SCALE_VARIANCE)
 
         # load the object with the determined scale and texture
-        if MEME_TEXTURES:
+        if self.MEME_TEXTURES:
             asteroid = self.loadObject(texture="textures/ahegao.png", scale=scale)
         else:
             asteroid = self.loadObject(texture="textures/asteroid%s.png" % randint(1,3), scale=scale)
@@ -303,7 +356,7 @@ class Asteroider(ShowBase):
         # append the new Asteroid to the end of the list
         self.asteroids.append(asteroid)
 
-        # if the position or velocity isn't set, make it random/standard
+        # if the position or velocity isn't set, make it random
         if (pos == "unset"):
             pos = self.randomPos()
         
@@ -338,7 +391,7 @@ class Asteroider(ShowBase):
 
             # Same sphere collision check for the ship vs. the asteroid
             if ((shipPos - asteroid.getPos()).lengthSquared() <
-                    (((shipSize + asteroid.getScale().getX()) * .4) ** 2)):
+                    (((shipSize + asteroid.getScale().getX()) * .3) ** 2)):
                 
                 # If there is a hit, clear the screen and schedule a restart
                 self.alive = False         # Ship is no longer alive
@@ -358,7 +411,7 @@ class Asteroider(ShowBase):
     def asteroidHit(self, index):
 
         # if the asteroid is too small remove the asteroid and exit the function
-        if(self.asteroids[index].getScale() < AST_MIN_SCALE):
+        if(self.asteroids[index].getScale() < self.AST_MIN_SCALE):
             self.asteroids[index].removeNode()
             del self.asteroids[index]
 
@@ -367,7 +420,8 @@ class Asteroider(ShowBase):
             if len(self.asteroids) == 0:
                 self.score += 1000
                 self.levelUp()
-
+            
+            self.scoreNode.setText("Score: " + str(self.score))
             return
         
         oldPos = LPoint3(self.asteroids[index].getX(), self.asteroids[index].getZ())
@@ -380,9 +434,11 @@ class Asteroider(ShowBase):
 
         self.score += 100
 
+        self.scoreNode.setText("Score: " + str(self.score))
+
         # make one Asteroid with the same velocity and one with negative velocity
         for i in (-1, 1):
-            self.newAsteroid(pos=oldPos, vector=oldVel * i, scale=oldScale * AST_SCALE_SMALLER)
+            self.newAsteroid(pos=oldPos, vector=oldVel * i, scale=oldScale * self.AST_SCALE_SMALLER)
 
     def fire(self, task):
         currentTime = task.time
@@ -392,15 +448,15 @@ class Asteroider(ShowBase):
             return
         
         # Schuss abfeuern
-        direction = DEG_TO_RAD * self.ship.getR()
+        direction = self.DEG_TO_RAD * self.ship.getR()
         pos = self.ship.getPos()
-        if MEME_TEXTURES:
-            bullet = self.loadObject("textures/youKnow.png", pos=pos, scale=BULLET_SIZE)
+        if self.MEME_TEXTURES:
+            bullet = self.loadObject("textures/youKnow.png", pos=pos, scale=self.BULLET_SIZE)
         else:
             bullet = self.loadObject("textures/bullet.png", pos=pos, scale=0.2)
-        relativeVel = self.getVelocity(self.ship) + (LVector3(sin(direction), 0, cos(direction)) * BULLET_SPEED)
+        relativeVel = self.getVelocity(self.ship) + (LVector3(sin(direction), 0, cos(direction)) * self.BULLET_SPEED)
         self.setVelocity(bullet, relativeVel)
-        self.setExpires(bullet, currentTime + BULLET_LIFE)
+        self.setExpires(bullet, currentTime + self.BULLET_LIFE)
 
         self.bulletList.append(bullet)
 
@@ -428,15 +484,15 @@ class Asteroider(ShowBase):
         
         # check if position is outside of screen
         radius = 1 * obj.getScale().getX()
-        if newPosition.getX() - radius > SCREEN_X:
-            newPosition.setX(-SCREEN_X)
-        elif newPosition.getX() + radius < -SCREEN_X:
-            newPosition.setX(SCREEN_X)
+        if newPosition.getX() - radius > self.SCREEN_X:
+            newPosition.setX(-self.SCREEN_X)
+        elif newPosition.getX() + radius < -self.SCREEN_X:
+            newPosition.setX(self.SCREEN_X)
 
-        if newPosition.getZ() - radius > SCREEN_Y:
-            newPosition.setZ(-SCREEN_Y)
-        elif newPosition.getZ() + radius < -SCREEN_Y:
-            newPosition.setZ(SCREEN_Y)
+        if newPosition.getZ() - radius > self.SCREEN_Y:
+            newPosition.setZ(-self.SCREEN_Y)
+        elif newPosition.getZ() + radius < -self.SCREEN_Y:
+            newPosition.setZ(self.SCREEN_Y)
         
         obj.setPos(newPosition)
 
@@ -446,21 +502,21 @@ class Asteroider(ShowBase):
         direction = self.ship.getR()
 
         if self.keys["turnRight"]:
-            direction += TURN_RATE * dt
+            direction += self.TURN_RATE * dt
             self.ship.setR(direction % 360)
         # kein elif!
         if self.keys["turnLeft"]:
-            direction -= TURN_RATE * dt
+            direction -= self.TURN_RATE * dt
             self.ship.setR(direction % 360)
         
         if self.keys["accel"]:
-            direction_rad = DEG_TO_RAD * direction
-            newVel = LVector3(sin(direction_rad), 0, cos(direction_rad)) * ACCELERATION * dt
+            direction_rad = self.DEG_TO_RAD * direction
+            newVel = LVector3(sin(direction_rad), 0, cos(direction_rad)) * self.ACCELERATION * dt
 
             newVel += self.getVelocity(self.ship)
-            if newVel.lengthSquared() > MAX_VEL_SQ:
+            if newVel.lengthSquared() > self.MAX_VEL_SQ:
                 newVel.normalize()
-                newVel *= MAX_VEL
+                newVel *= self.MAX_VEL
             
             self.setVelocity(self.ship, newVel)
 
@@ -473,10 +529,11 @@ class Asteroider(ShowBase):
     def levelUp(self):
 
         self.level += 1
+        self.levelNode.setText("Level: " + str(self.level))
 
         # spawn more asteroids with a higher velocity
-        for i in range(NUMBER_OF_ASTEROIDS + self.level * 2):
-            self.newAsteroid(speed=AST_INIT_VELOCITY + self.level * 0.2)
+        for i in range(self.NUMBER_OF_ASTEROIDS + self.level * 2):
+            self.newAsteroid(speed=self.AST_INIT_VELOCITY + self.level * 0.2)
 
     def gameLoop(self, task):
 
@@ -500,19 +557,21 @@ class Asteroider(ShowBase):
         self.checkBulletAsteroidCollision()
         self.checkShipCollision()
 
-        # update the textNodes
-        self.scoreNode.setText("Score: " + str(self.score))
-        self.levelNode.setText("Level: " + str(self.level))
-
 
         # Ein return Task.cont heißt, der taskMgr lässt den taskLoop continuen/weiterlaufen
         return Task.cont
   
     def __init__(self):
 
+        # Als allererstes die config laden
+        self.loadConfig()
+
         # Showbase und das Fenster konfigurieren
         ShowBase.__init__(self)
         self.setProperties()
+
+        # login Dialog zeigen
+        self.qtBox()
 
         # Alle Objekte im Spiel initialisieren
         self.initializeGameObjects()

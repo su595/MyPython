@@ -29,7 +29,7 @@ class astabileKippstufeRechner():
         self.button = QPushButton("Berrechnen \n")
         self.layout.addWidget(self.button)
 
-        # Viele Label für die Ergebnisse, die in on_button_clicked mit setText() gefüllt werden
+        # Vier Label für die Ergebnisse, die in on_button_clicked mit setText() gefüllt werden
         self.RC12 = QLabel()
         self.layout.addWidget(self.RC12)
         self.RB12 = QLabel()
@@ -40,14 +40,14 @@ class astabileKippstufeRechner():
         self.layout.addWidget(self.C2)
 
         def on_button_clicked():
-
+            # self.berrechnen mit den eingegebenen Werten ausführen und die Ergebnis-Label mit den Ergebnissen aus self.values füllen
+            
             self.berrechnen(float(self.VCC.text()), float(self.f.text()), float(self.V.text()), float(self.I.text()) )
 
             self.RC12.setText("Rc1 und Rc2 = " + str( self.values["RC12"]) + "Ohm")
             self.RB12.setText("Rb1 und Rb2 = " + str( self.values["RB12"]) + "Ohm")
             self.C1.setText("C1 = " + self.smallFloatString( self.values["C1"]) + "F")
             self.C2.setText("C2 = " + self.smallFloatString( self.values["C2"]) + "F")
-
 
         self.button.clicked.connect(on_button_clicked)
 
@@ -65,6 +65,7 @@ class astabileKippstufeRechner():
         rb12 = rc12 * 10
 
         # tau1 und tau2 berrechnen
+        # 0.69 = ln(2)
         tau1 = 1 / ( f * ( 0.69 + 0.69 * 1/V ) )
         tau2 = 1 / ( f * ( 0.69 + 0.69 * V ) )
 
@@ -81,7 +82,8 @@ class astabileKippstufeRechner():
     def smallFloatString(self, flt):
 
         # das ist alles ein schlimm zusammengeklatscher Workaround der zwar funktioniert aber bitte niemals nochmal verwenden
-        
+        # ganz oft funktioniert es nicht, dann wird der Standart-String vom float züruckgegeben
+
         fltString = str(flt)
 
         exponent = fltString[len(fltString) - 3]
@@ -118,10 +120,11 @@ class astabileKippstufeRechner():
         return str(round(flt, 5))
 
     def __init__(self):
-
+        
+        # ein dictonary mit allen Werten erstellen
         self.values = {"RC12": 0, "RB12": 0,"C1": 0, "C2": 0}
 
+        # UI starten
         self.qtBox()
         
-
-start = astabileKippstufeRechner()
+astabileKippstufeRechner()
