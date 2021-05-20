@@ -9,7 +9,7 @@ import mysql.connector
 import bcrypt
 import sys
 from math import cos, pi, sin
-from yaml import load, dump
+from yaml import load
 
 
 class Asteroider(ShowBase):
@@ -195,6 +195,8 @@ class Asteroider(ShowBase):
         self.layout.addWidget(self.regButton)
         self.answerLabel = QLabel("\n")
         self.layout.addWidget(self.answerLabel)
+        self.skipButton = QPushButton("Ohne Login starten")
+        self.layout.addWidget(self.skipButton)
 
         def on_button_clicked_login():
             succ = self.login(self.usernameLE.text(), self.pwLE.text())
@@ -212,9 +214,15 @@ class Asteroider(ShowBase):
             
             if succ:
                 self.app.exit()
+        
+        def on_button_clicked_skip():
+            self.player = "not logged in"
+            self.app.exit()
 
         self.loginButton.clicked.connect(on_button_clicked_login)
         self.regButton.clicked.connect(on_button_clicked_reg)
+        self.skipButton.clicked.connect(on_button_clicked_skip)
+
 
 
         # Das oben erstellte Layout dem Fenster zuweisen und das Fenster öffnen
