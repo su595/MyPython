@@ -1,15 +1,15 @@
+from math import cos, pi, sin
+import sys
 from random import choice, randint, random
-from re import S
+
 from direct.showbase.ShowBase import ShowBase
 # LPoint3 und LVector3 sind Panda3d-Objekte für Punkte und Vektoren
-from panda3d.core import WindowProperties, TransparencyAttrib, LPoint3, LVector3, ClockObject, TextNode
+from panda3d.core import WindowProperties, TransparencyAttrib, LPoint3, LVector3, ClockObject, TextNode, AudioManager
 from direct.task.Task import Task
-from PyQt5.QtWidgets import QApplication, QLabel, QLineEdit, QPushButton, QVBoxLayout, QWidget, qDrawBorderPixmap
-import mysql.connector
-import bcrypt
-import sys
-from math import cos, pi, sin
-from yaml import load
+# from yaml import load, dump
+import configparser
+
+from Player import PlayerDB
 
 
 class Asteroider(ShowBase):
@@ -18,7 +18,7 @@ class Asteroider(ShowBase):
 
         # set properties of the window
         properties = WindowProperties()
-        properties.setSize(self.WINDOW_SIZE[0], self.WINDOW_SIZE[1])
+        properties.setSize(self.WINDOW_SIZE_X, self.WINDOW_SIZE_Y)
         properties.setTitle("Titel des Fensters")
         self.win.requestProperties(properties)
 
@@ -61,65 +61,51 @@ class Asteroider(ShowBase):
         self.playerNode = TextNode("Spieler ")
         textNodePath = aspect2d.attachNewNode(self.playerNode)
         textNodePath.setScale(0.06)
-        textNodePath.setPos(LPoint3(-1.3, 0, 0.95))
-        self.levelNode = TextNode("Level ")
-        textNodePath = aspect2d.attachNewNode(self.levelNode)
-        textNodePath.setScale(0.06)
-        textNodePath.setPos(LPoint3(-1.3, 0, 0.85))
-        self.scoreNode = TextNode("Score ")
-        textNodePath = aspect2d.attachNewNode(self.scoreNode)
-        textNodePath.setScale(0.06)
-        textNodePath.setPos(LPoint3(-1.3, 0, 0.75))
-
-        self.level = 1
-        self.score = 0
+        textNodePath.setPos(LPoint3(-1.3, 0, 0.90))
         
-        # Einmal die Text Nodes aktualisieren
-        # bei playerNode eventuelle Exceptions ignorieren und weiterlaufen
-        try:
-            self.playerNode.setText("Spieler: " + self.player)
-        except:
-            pass
-        self.scoreNode.setText("Score: " + str(self.score))
-        self.levelNode.setText("Level: " + str(self.level))
-
+        # Einmal die Text Node aktualisieren
+        self.playerNode.setText(str(self.thisPlayer))
+        
         self.registerInputs()
 
-        self.myMusic()
+        self.playMusic("sounds/nete.ogg", volume=0.005 , loop=True)
 
-    def myMusic(self):
-        music = self.loader.loadMusic("sounds/nete.ogg")
-        music.setLoop(True)
-        music.setVolume(0.075)
+    def playMusic(self, path, volume=0.05, loop=False):
+        music = self.loader.loadSfx(path)
+        music.setLoop(loop)
+        music.setVolume(volume)
         music.play()
 
     def loadConfig(self):
-        with open("Spiel/config.yml", "r") as ymlfile:
-            config = load(ymlfile)
+        with open("Spiel/config.yml", "r") as configfile:
+            config = configparser.ConfigParser()
+            config.read("Spiel/config.ini")
+            print(config.sections)
         
         # Hier speichere ich alle Einstellungen aus der config in konstanten, damit der code lesbar bleibt
-        self.MY_SQL = config["mysql"]
-        self.MEME_TEXTURES = config["game"]["meme_textures"]                    # ( ͡° ͜ʖ ͡°)
-        self.DEFAULT_DEPTH = config["game"]["default_depth"]                    # Default Tiefe in der alle Objekte liegen
-        self.WINDOW_SIZE = config["window"]["size"]                             # Größe des Fensters
-        self.SCREEN_X = config["window"]["screen_x"]                            # 20/15 = 800/600
-        self.SCREEN_Y = config["window"]["screen_y"]
-        self.NUMBER_OF_ASTEROIDS = config["game"]["asteroid"]["number"]         # Wieviele Asteroids am Anfang im Spiel sind (vlt. bei größerem Window mehr Asteroids)
-        self.AST_INIT_VELOCITY = config["game"]["asteroid"]["velocity"]         # Geschwindigkeit der Asteroids
-        self.AST_SCALE = config["game"]["asteroid"]["scale"]                    # Größe der Asteroids
-        self.AST_SCALE_VARIANCE = config["game"]["asteroid"]["scale_variance"]  # Um wieviel die ASTEROIDER_SCALE zufällig verändert wird
-        self.AST_SCALE_SMALLER = config["game"]["asteroid"]["shrink_hit"]       # Um wieviel bei einem Treffer die Asteroids kleiner werden
-        self.AST_MIN_SCALE = config["game"]["asteroid"]["min_scale"]            # Ab wann der Asteroid verschwindet
-        self.SHIP_SCALE = config["game"]["ship"]["scale"]                       # Größe des Schiffes
-        self.TURN_RATE = config["game"]["ship"]["turn_rate"]                    # ein Faktor wie schnell sich das Schiff drehen kann
-        self.ACCELERATION = config["game"]["ship"]["acceleration"]              # ein Faktor wie schnell sich das Schiff beschleunigen kann
-        self.MAX_VEL = config["game"]["ship"]["max_velocity"]                   # die maximale Geschwindigkeit
+        self.MY_SQL = dict(config["mysql"])
+        self.MEME_TEXTURES = bool(config["game"]["meme_textures"])                    # ( ͡° ͜ʖ ͡°)
+        self.DEFAULT_DEPTH = int(config["game"]["default_depth"])                    # Default Tiefe in der alle Objekte liegen
+        self.WINDOW_SIZE_X = int(config["window"]["size_x"])                             # Größe des Fensters
+        self.WINDOW_SIZE_Y = int(config["window"]["size_y"])                             
+        self.SCREEN_X = int(config["window"]["screen_x"])                            # 20/15 = 800/600
+        self.SCREEN_Y = int(config["window"]["screen_y"])
+        self.NUMBER_OF_ASTEROIDS = int(config["asteroid"]["number"])         # Wieviele Asteroids am Anfang im Spiel sind (vlt. bei größerem Window mehr Asteroids)
+        self.AST_INIT_VELOCITY = float(config["asteroid"]["velocity"])         # Geschwindigkeit der Asteroids
+        self.AST_SCALE = int(config["asteroid"]["scale"])                    # Größe der Asteroids
+        self.AST_SCALE_VARIANCE = int(config["asteroid"]["scale_variance"])  # Um wieviel die ASTEROIDER_SCALE zufällig verändert wird
+        self.AST_SCALE_SMALLER = float(config["asteroid"]["shrink_hit"])       # Um wieviel bei einem Treffer die Asteroids kleiner werden
+        self.AST_MIN_SCALE = int(config["asteroid"]["min_scale"])            # Ab wann der Asteroid verschwindet
+        self.SHIP_SCALE = int(config["ship"]["scale"])                       # Größe des Schiffes
+        self.TURN_RATE = int(config["ship"]["turn_rate"])                    # ein Faktor wie schnell sich das Schiff drehen kann
+        self.ACCELERATION = int(config["ship"]["acceleration"])              # ein Faktor wie schnell sich das Schiff beschleunigen kann
+        self.MAX_VEL = int(config["ship"]["max_velocity"])                   # die maximale Geschwindigkeit
         self.MAX_VEL_SQ = self.MAX_VEL**2                                       
         self.DEG_TO_RAD = pi / 180                                              # Faktor um Degrees zu Radiant umzuwandeln
-        self.BULLET_LIFE = config["game"]["bullet"]["life"]                     # Nach wie viel Zeit die Bullets verschwinden
-        self.BULLET_REPEAT = config["game"]["bullet"]["repeat"]                 # Wie schnell man hintereinander schießen kann
-        self.BULLET_SPEED = config["game"]["bullet"]["speed"]                   # Wie schnell die Bullets sind
-        self.BULLET_SIZE = config["game"]["bullet"]["size"]                     # Wie groß die Bullets sind
+        self.BULLET_LIFE = float(config["bullet"]["life"])                     # Nach wie viel Zeit die Bullets verschwinden
+        self.BULLET_REPEAT = float(config["bullet"]["repeat"])                 # Wie schnell man hintereinander schießen kann
+        self.BULLET_SPEED = int(config["bullet"]["speed"])                   # Wie schnell die Bullets sind
+        self.BULLET_SIZE = int(config["bullet"]["size"])                     # Wie groß die Bullets sind
 
     def resetGame(self):
         # reset the ship
@@ -128,12 +114,15 @@ class Asteroider(ShowBase):
         self.ship.setZ(0)
         self.ship.show()
 
-        # reset level and score
-        self.level = 1
-        self.score = 0
+        # save any highscore that might have been made
+        self.thisPlayer.savePlayerHighscoreToDatabase()
 
-        self.scoreNode.setText("Score: " + str(self.score))
-        self.levelNode.setText("Level: " + str(self.level))
+        # reset current level and score
+        self.thisPlayer.level = 1
+        self.thisPlayer.score = 0
+
+        self.playerNode.setText(str(self.thisPlayer))
+
 
         # spawn new initial asteroids
         for i in range(self.NUMBER_OF_ASTEROIDS):
@@ -175,137 +164,9 @@ class Asteroider(ShowBase):
     def getExpires(self, obj):
         return obj.getPythonTag("expires")
 
-    def qtBox(self):
-
-        self.app = QApplication([])
-        self.window = QWidget()
-        self.layout = QVBoxLayout()
-
-        # jeweils ein Label und ein Eingabefeld (LineEdit) für Email und Password
-        self.layout.addWidget(QLabel("Email: "))
-        self.usernameLE = QLineEdit()
-        self.layout.addWidget(self.usernameLE)
-        self.layout.addWidget(QLabel("Password: "))
-        self.pwLE = QLineEdit()
-        self.layout.addWidget(self.pwLE)
-        # Button für Login oder Registrieren
-        self.loginButton = QPushButton("Login")
-        self.layout.addWidget(self.loginButton)
-        self.regButton = QPushButton("Registrieren")
-        self.layout.addWidget(self.regButton)
-        self.answerLabel = QLabel("\n")
-        self.layout.addWidget(self.answerLabel)
-        self.skipButton = QPushButton("Ohne Login starten")
-        self.layout.addWidget(self.skipButton)
-
-        def on_button_clicked_login():
-            succ = self.login(self.usernameLE.text(), self.pwLE.text())
-
-            self.answerLabel.setText(self.loginResponse)
-            
-            # if the login is successful, exit qt app to the game
-            if succ:
-                self.app.exit()
-                
-        def on_button_clicked_reg():
-            succ = self.register(self.usernameLE.text(), self.pwLE.text())
-
-            self.answerLabel.setText(self.loginResponse)
-            
-            if succ:
-                self.app.exit()
-        
-        def on_button_clicked_skip():
-            self.player = "not logged in"
-            self.app.exit()
-
-        self.loginButton.clicked.connect(on_button_clicked_login)
-        self.regButton.clicked.connect(on_button_clicked_reg)
-        self.skipButton.clicked.connect(on_button_clicked_skip)
-
-
-
-        # Das oben erstellte Layout dem Fenster zuweisen und das Fenster öffnen
-        self.window.setLayout(self.layout)
-        self.window.show()
-        self.app.exec()
-    
-    def login(self, username, pw):
-        self.loginResponse = "nichts"
-
-        # MySQL Verbindung initiieren
-        verbindung = mysql.connector.connect(user=self.MY_SQL["user"], password=self.MY_SQL["password"], host=self.MY_SQL["host"], database=self.MY_SQL["db"])
-
-        # Passworthash von dem Username aus der Datenbank abfragen
-        mycursor = verbindung.cursor()
-        sqlBefehl = "SELECT pw FROM astlogin WHERE username = %s"
-        mycursor.execute(sqlBefehl, (username, ))
-
-        pwHashed = mycursor.fetchall()
-
-        # Wenn das Ergebnis leer ist
-        if not mycursor.rowcount:
-            self.loginResponse = "Username nicht vergeben"
-            return False
-
-        # Das kann man sicher auch ohne for machen, aber ich lasse es so weils funktioniert
-        for x in pwHashed:
-            # es gibt nur ein Ergebnis in einer Zeile, weil das beim SQL Befehl so festgelegt wurde
-            pwHashed = x[0]
-
-        # Alles utf-8 encoden weil Bcrypt sehr wählerisch ist
-        pw = pw.encode("utf-8")
-        pwHashed = pwHashed.encode("utf-8")
-
-        # Übergebenes Passwort und Hash aus der Datenbank vergleichen und entsprechend true oder false liefern
-        # Vorher noch die Verbindung schließen
-        if bcrypt.checkpw(pw, pwHashed):
-            verbindung.close()
-            self.loginResponse = "Erfolgreich"
-            self.player = username
-            return True
-        
-        verbindung.close
-        self.loginResponse = "Falsches Passwort"
-        return False
-    
-    def register(self, username, pw):
-
-        # MySQL Verbindung initiieren
-        verbindung = mysql.connector.connect(user=self.MY_SQL["user"], password=self.MY_SQL["password"], host=self.MY_SQL["host"], database=self.MY_SQL["db"])
-
-
-        # Schauen ob der Benutzername schon vergeben ist (ob das Ergebnis der Abfrage größer als 0 ist) und wenn ja false returnen
-        mycursor = verbindung.cursor()
-        sqlBefehl = "SELECT * FROM astlogin WHERE username = %s"
-        mycursor.execute(sqlBefehl, (username, ))
-        mycursor.fetchall()
-
-        if mycursor.rowcount:
-            self.loginResponse = "Username schon vergeben"
-            return False
-        
-        pw = pw.encode("utf-8")
-        print(username)
-
-        # Wenn der Benutzername nicht vergeben ist, dann den Passworthash generieren und zusammen mit dem Benutzernamen in die Datenbank einfügen
-        pwHashed = bcrypt.hashpw(pw, bcrypt.gensalt())
-        print(pwHashed)
-
-        sqlBefehl = "INSERT INTO astlogin (username, pw) VALUES ('"+ username +"', '"+ str(pwHashed, "utf-8") +"')"
-        print(sqlBefehl)
-        try:
-            mycursor.execute(sqlBefehl)
-            self.loginResponse = "Erfolgreich registriert!"
-            self.player = username
-            return True
-        except:
-            self.loginResponse = "Fehler"
-            return False
-
     def loadObject(self, texture, pos=LPoint3(0,0), depth="urMom", scale=1, transparency=True):
 
-        # workaround, ich kann kein self.DEFAULT_DEPTH direkt übergeben
+        # workaround, ich kann kein self.DEFAULT_DEPTH direkt als default setzen
         if depth == "urMom": depth = self.DEFAULT_DEPTH
 
         # Jedes Objekt benutzt das plane-Model (weil 2D und so)
@@ -418,18 +279,20 @@ class Asteroider(ShowBase):
 
     def asteroidHit(self, index):
 
+        self.playMusic("Spiel/sounds/stone.ogg")
+
         # if the asteroid is too small remove the asteroid and exit the function
         if(self.asteroids[index].getScale() < self.AST_MIN_SCALE):
             self.asteroids[index].removeNode()
             del self.asteroids[index]
 
-            self.score += 200
+            self.thisPlayer.score += 200
             # if there are no asteroids left
             if len(self.asteroids) == 0:
-                self.score += 1000
+                self.thisPlayer.score += 1000
                 self.levelUp()
             
-            self.scoreNode.setText("Score: " + str(self.score))
+            self.playerNode.setText(str(self.thisPlayer))
             return
         
         oldPos = LPoint3(self.asteroids[index].getX(), self.asteroids[index].getZ())
@@ -440,9 +303,9 @@ class Asteroider(ShowBase):
         self.asteroids[index].removeNode()
         del self.asteroids[index]
 
-        self.score += 100
-
-        self.scoreNode.setText("Score: " + str(self.score))
+        self.thisPlayer.score += 100
+        
+        self.playerNode.setText(str(self.thisPlayer))
 
         # make one Asteroid with the same velocity and one with negative velocity
         for i in (-1, 1):
@@ -469,6 +332,8 @@ class Asteroider(ShowBase):
         self.bulletList.append(bullet)
 
         self.setKey("fire", 0)
+
+        self.playMusic("Spiel/sounds/shot.ogg")
 
     def updateBullets(self, task, dt):
         newBullets = []
@@ -536,12 +401,12 @@ class Asteroider(ShowBase):
 
     def levelUp(self):
 
-        self.level += 1
-        self.levelNode.setText("Level: " + str(self.level))
+        self.thisPlayer.level += 1
+        self.playerNode.setText(str(self.thisPlayer))
 
         # spawn more asteroids with a higher velocity
-        for i in range(self.NUMBER_OF_ASTEROIDS + self.level * 2):
-            self.newAsteroid(speed=self.AST_INIT_VELOCITY + self.level * 0.2)
+        for i in range(self.NUMBER_OF_ASTEROIDS + self.thisPlayer.level * 2):
+            self.newAsteroid(speed=self.AST_INIT_VELOCITY + self.thisPlayer.level * 0.2)
 
     def gameLoop(self, task):
 
@@ -578,8 +443,8 @@ class Asteroider(ShowBase):
         ShowBase.__init__(self)
         self.setProperties()
 
-        # login Dialog zeigen
-        self.qtBox()
+        # Player erstellen (das öffnet qt-Diaglog zum einloggen)
+        self.thisPlayer = PlayerDB(self.MY_SQL)
 
         # Alle Objekte im Spiel initialisieren
         self.initializeGameObjects()

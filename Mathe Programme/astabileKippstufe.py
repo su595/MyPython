@@ -116,7 +116,7 @@ class astabileKippstufeRechner():
         if exponent == -12:
             return str(round(mantissa * 1, 2)) + "p"
 
-        # if the float is out of the supported range
+        # wenn die größe nicht unterstützt wird den default zurückgeben
         return str(round(flt, 5))
 
     def __init__(self):
@@ -127,4 +127,5 @@ class astabileKippstufeRechner():
         # UI starten
         self.qtBox()
         
+
 astabileKippstufeRechner()
