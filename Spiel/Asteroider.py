@@ -68,7 +68,7 @@ class Asteroider(ShowBase):
         
         self.registerInputs()
 
-        self.playMusic("sounds/nete.ogg", volume=0.005 , loop=True)
+        self.playMusic("sounds/nete.ogg", volume=0.01 , loop=True)
 
     def playMusic(self, path, volume=0.05, loop=False):
         music = self.loader.loadSfx(path)
@@ -77,10 +77,9 @@ class Asteroider(ShowBase):
         music.play()
 
     def loadConfig(self):
-        with open("Spiel/config.yml", "r") as configfile:
-            config = configparser.ConfigParser()
-            config.read("Spiel/config.ini")
-            print(config.sections)
+        
+        config = configparser.ConfigParser()
+        config.read("Spiel/config.ini")
         
         # Hier speichere ich alle Einstellungen aus der config in konstanten, damit der code lesbar bleibt
         self.MY_SQL = dict(config["mysql"])
