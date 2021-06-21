@@ -349,7 +349,6 @@ class Asteroider(ShowBase):
         self.bulletList = newBullets
 
     def updatePos(self, obj, deltaT):
-
         velocity = self.getVelocity(obj)
 
         newPosition = obj.getPos() + (velocity * deltaT)
@@ -369,7 +368,6 @@ class Asteroider(ShowBase):
         obj.setPos(newPosition)
 
     def updateShip(self, task, dt):
-
         # Die Rotation unseres Schiffes
         direction = self.ship.getR()
 
@@ -399,7 +397,6 @@ class Asteroider(ShowBase):
         self.updatePos(self.ship, dt)
 
     def levelUp(self):
-
         self.thisPlayer.level += 1
         self.playerNode.setText(str(self.thisPlayer))
 
@@ -408,12 +405,10 @@ class Asteroider(ShowBase):
             self.newAsteroid(speed=self.AST_INIT_VELOCITY + self.thisPlayer.level * 0.2)
 
     def gameLoop(self, task):
-
         # get the time since the last loop (since globalClock was last updated)
         globalClock = ClockObject.getGlobalClock()
         deltaT = globalClock.getDt()
         self.showFPS(deltaT)
-
 
         # Update position of the asteroids
         for asteroid in self.asteroids:
@@ -429,12 +424,10 @@ class Asteroider(ShowBase):
         self.checkBulletAsteroidCollision()
         self.checkShipCollision()
 
-
         # Ein return Task.cont heißt, der taskMgr lässt den taskLoop continuen/weiterlaufen
         return Task.cont
   
     def __init__(self):
-
         # Als allererstes die config laden
         self.loadConfig()
 
