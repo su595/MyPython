@@ -268,17 +268,19 @@ class LocalBackupManager():
         except:
             self.ymlDict["files"] = {}
 
-        # remove duplicates in the newListOfPaths
-        for existingPath in tempFileList:
-            for newPath in listOfPaths:
+        # if a path that was already in the list is selected again, it is deleted from the list
+        for newPath in listOfPaths:
+            for existingPath in tempFileList:
                 if existingPath == newPath:
+                    tempFileList.remove(existingPath)
                     listOfPaths.remove(newPath)
-        
+            
         # append all new paths
         for newPath in listOfPaths:
             tempFileList.append(newPath)
 
         # convert the temporary list back to a dict
+        self.ymlDict["files"] = {}
         for i in range(len(tempFileList)):
             self.ymlDict["files"][str(i)] = tempFileList[i]
         
