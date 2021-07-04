@@ -44,7 +44,7 @@ class CustomWidgets(QWidget):
         box.exec()
 
 # these get put in the init qt for convenience
-DEFAULT_YML_PATHS = ['Y:/yanni/Dokumente/GitHub/Q3python/misc/test.yml', 'Y:/yanni/Desktop/important files on Y.yml']
+DEFAULT_YML_PATHS = ['/home/yannick/Desktop/laptop main backup.yml', '/home/yannick/git-repos/q3py/misc/test.yml']
 
 MAIN_QT_WIDTH = 800
 MAIN_QT_HEIGHT = 600
@@ -76,8 +76,8 @@ class LocalBackupManager():
             ymlSelectionCombo.addItem(path)
 
         self.layout.addWidget(QLabel("Absolute filepath of the .yml file"))
-        lineedit = QLineEdit()
-        self.layout.addWidget(lineedit)
+        self.lineedit = QLineEdit()
+        self.layout.addWidget(self.lineedit)
         
         button = QPushButton("Enter")
         # so that the push button can be triggered by pressing enter
@@ -87,9 +87,10 @@ class LocalBackupManager():
         feedback = QLabel("\n")
         self.layout.addWidget(feedback)
 
-        def buttonFunc(temppath=lineedit.text()):
+        def buttonFunc(temppath=self.lineedit.text()):
+            
             # fileExtension is the last four characters of path
-            fileExtension = temppath[len(temppath)-4] + temppath[len(temppath)-3] + temppath[len(temppath)-2] + temppath[len(temppath)-1]
+            fileExtension = temppath[-4:]
             if fileExtension != ".yml":
                 feedback.setText("[Errno 3.141] " + temppath + " does not lead to a .yml file :(")
 
@@ -125,7 +126,7 @@ class LocalBackupManager():
             self.app.exit()
 
         def comboFunc():
-            buttonFunc(ymlSelectionCombo.currentText())
+            buttonFunc(temppath=ymlSelectionCombo.currentText())
 
         button.clicked.connect(buttonFunc)
         ymlSelectionCombo.activated.connect(comboFunc)
@@ -289,22 +290,30 @@ class LocalBackupManager():
         if not path:
             return None
 
-        # try if directory already exists
+        tempDirList = []
         try:
-            # check if the path already exists
-            for a in self.ymlDict["directories"]:
-                if path == self.ymlDict["directories"][a]["path"]:
-                    return None
+            for key in self.ymlDict["directories"].keys():
+                tempDirList.append(self.ymlDict["directories"][key]["path"])
         except Exception as e:
             print(e)
-            self.ymlDict["directories"] = {}
 
-        # append new directory with the right formating
-        lengthOfDirectories = len(self.ymlDict["directories"].keys())
-        self.ymlDict["directories"] [str(lengthOfDirectories)] = {}
+        # if a selected dir is already in the dirList, remove and dont append below
+        ssame = False
+        for dir in tempDirList:
+            if dir == path:
+                tempDirList.remove(path)
+                ssame = True
         
-        self.ymlDict["directories"][str(lengthOfDirectories)]["path"] = path
-        self.ymlDict["directories"][str(lengthOfDirectories)]["blacklist"] = {}
+        # append the new path
+        if not ssame:
+            tempDirList.append(path)
+
+        # convert the temporary list back to a dict
+        self.ymlDict["directories"] = {}
+        for i in range(len(tempDirList)):
+            self.ymlDict["directories"][str(i)] = {}
+            self.ymlDict["directories"][str(i)]["path"] = tempDirList[i]
+            self.ymlDict["directories"][str(i)]["blacklist"] = {}
         
         # save the changes
         self.updateConfig()
@@ -318,11 +327,6 @@ class LocalBackupManager():
         self.updateConfig()
 
     def addPathsToBlacklist(self, dirNo, paths):
-        #for path in paths:
-        #    self.ymlDict["directories"][str(dirNo)]["blacklist"].append(path)
-
-        #self.updateQTLabels()
-
         
         # check if list is empty
         if not len(paths):
@@ -372,7 +376,7 @@ class LocalBackupManager():
     def printYmlDict(self):
         def getDictStrRec(out, dicti, indent=0):
 
-            if indent > 100:
+            if indent > 200:
                 return "[ERRNO 420] too much recursion :("
 
             # for every key in the dict
@@ -388,6 +392,10 @@ class LocalBackupManager():
                     out += indent * " " + str(key) + ": \n"
                     
                     out = getDictStrRec(out, dicti[key], indent+4)
+
+                    # this is a fancy way of doing it by returning a function call with the modified out
+                    # credit to moritz
+                    #return getDictStrRec(out, dicti[key], indent+4)
             
             # after everything was went through
             return out
@@ -400,8 +408,12 @@ class LocalBackupManager():
     def getAvailableSpace(self):
         
         # should work for windows and linux
-        space = shutil.disk_usage(self.backupPath)
-        
+        try:
+            space = shutil.disk_usage(self.backupPath)
+        except Exception as e:
+            print(e)
+            space = (-1,-1,-1)
+
         out = []
         out.append(space[0])
         out.append(space[1])
@@ -497,4 +509,5 @@ class LocalBackupManager():
         shutil.copy2(self.configPath, targetDir)
 
 
-LocalBackupManager()
+if(__name__ == "__main__"):
+    LocalBackupManager()
