@@ -6,6 +6,7 @@ import shutil
 from hurry.filesize import size
 import datetime
 
+
 class CustomWidgets(QWidget):
     # this is copy-paste from the internet with modifications
 
@@ -44,7 +45,7 @@ class CustomWidgets(QWidget):
         box.exec()
 
 # these get put in the init qt for convenience
-DEFAULT_YML_PATHS = ['/home/yannick/Desktop/laptop main backup.yml', '/home/yannick/git-repos/q3py/misc/test.yml']
+DEFAULT_YML_PATHS = ['/home/yannick/IMPORTANT FILES.yml', '/home/yannick/git-repos/q3py/misc/test.yml']
 
 MAIN_QT_WIDTH = 800
 MAIN_QT_HEIGHT = 600
@@ -176,7 +177,7 @@ class LocalBackupManager():
         if self.ymlDict["meta"]["lastBackupPath"] is not None:
             self.backupPath = self.ymlDict["meta"]["lastBackupPath"]
             space = self.getAvailableSpace()
-            self.backupLocationLabel.setText("Backup Location: " + self.backupPath + "\nTotal space of the drive is " + size(space[0]) + " with " + size(space[2]) + " of free space.\nThe last backup was made on " + str(self.ymlDict["meta"]["lastBackupTime"]))
+            self.backupLocationLabel.setText("Backup Location: " + self.backupPath + "\nTotal size of the drive is " + size(space[0]) + " with " + size(space[2]) + " of free space.\nThe last backup was made on " + str(self.ymlDict["meta"]["lastBackupTime"]))
         else:
             self.backupPath = ""
 
@@ -206,20 +207,20 @@ class LocalBackupManager():
             self.backupLocationLabel.setText("Backup Location: " + self.backupPath + "\nTotal space of the drive is " + size(space[0]) + " with " + size(space[2]) + " of free space\nThe last backup was made on " + str(self.ymlDict["meta"]["lastBackupTime"]))
 
         def doBackupFunc():
-            # check is self.backupPath exists
+            # check is self.backupPath exists (this will throw an error if self.backupPath wasn't set before)
             try:
                 self.backupPath = self.backupPath
             except:
                 self.myCustomWidgets.infoPopup("No backup path selected!", "Problem")
                 return 
 
-            # if the size of the backup is bigger than the available space, cancel
+            # return if the size of the backup is bigger than the available space
             if self.getBackupSize() > (self.getAvailableSpace()[2] * 0.9):
                 self.myCustomWidgets.infoPopup("Not enough space available!", "Problem")
+                return
             
-            else:
-                self.copyAllFiles(self.backupPath)
-                self.myCustomWidgets.infoPopup("Successfully backed up!", "Success", "Information")
+            self.copyAllFiles(self.backupPath)
+            self.myCustomWidgets.infoPopup("Successfully backed up!", "Success", "Information")
 
         def deleteConfigFunc():
             if self.myCustomWidgets.resetPopup():
@@ -403,7 +404,7 @@ class LocalBackupManager():
             return out
 
         # prints the dict nicely formatted with all is layers using a recursive function (ohh fancy)
-        out = " ~~~ Yaml file at " + self.configPath + " ~~~\n\n"
+        out = " ~~~ File at " + self.configPath + " ~~~\n\n"
 
         return getDictStrRec(out, self.ymlDict) + "\n~~~~~~~~~"
 
@@ -452,7 +453,9 @@ class LocalBackupManager():
             if not os.path.exists(dst):
                 os.makedirs(dst)
             for item in os.listdir(src):
+                # source
                 s = os.path.join(src, item).replace("\\", "/")
+                # destination
                 d = os.path.join(dst, item).replace("\\", "/")
                 if os.path.isdir(s):
                     myCopyTree(s, d, symlinks, ignore, blacklist=blacklist)
@@ -462,21 +465,26 @@ class LocalBackupManager():
                         if not os.path.exists(d) or os.stat(s).st_mtime - os.stat(d).st_mtime > 1:
                             shutil.copy2(s, d)
         
+        # display an info popup
+        self.myCustomWidgets.infoPopup("This can take some time, please be paitent and wait until you see another popup saying it's done.\n(especially for backups larger than a few gigabytes)", title="Backup in progress", flag="Information")
+        
         # copy all directories 
         if self.ymlDict["directories"] is not None:
             # for every entry in directories
             for key in self.ymlDict["directories"].keys():
+                # convert the file path to a list of chars for easier char-by-char manipulation
                 templist = list(self.ymlDict["directories"][key]["path"])
 
                 #remove forbidden characters from foldername
                 for i in range(len(templist)):
                     if templist[i] == "/":
                         templist[i] = "_"
-                    # remove the drive letter
+                    # remove the drive letter if there's one
                     if templist[i] == ":":
                         templist[i-1] = ""
                         templist[i] = ""
 
+                # convert the list of chars back to a string
                 folderName = ""
                 for char in templist:
                     folderName += char
@@ -503,6 +511,7 @@ class LocalBackupManager():
         self.ymlDict["meta"]["lastBackupTime"] = str(datetime.datetime.now())
         self.ymlDict["meta"]["lastBackupPath"] = targetDir
 
+        # update the availabe space info (this only needs to be done at start or after a backup)
         space = self.getAvailableSpace()
         self.backupLocationLabel.setText("Backup Location: " + self.backupPath + "\nTotal space of the drive is " + size(space[0]) + " with " + size(space[2]) + " of free space.\nThe last backup was made on " + str(self.ymlDict["meta"]["lastBackupTime"]))
         self.updateConfig()
@@ -510,6 +519,6 @@ class LocalBackupManager():
         # copy the yml file used for the backup
         shutil.copy2(self.configPath, targetDir)
 
-
+# if i ever wanted to import this as a library, this prevents the class from automatically executing if exported and not the "main program"
 if(__name__ == "__main__"):
     LocalBackupManager()
