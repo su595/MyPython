@@ -3,6 +3,8 @@ from django.shortcuts import render
 # Create your views here.
 
 from django.http import HttpResponse
+from .models import Bike
+
 
 def another(request):
     thisResponse = HttpResponse("test")
@@ -10,6 +12,6 @@ def another(request):
     return thisResponse
 
 def bike_list(request):
-    bikes = 
-    return render(request,"boards/bike_list.html", {})
+    bikes = Bike.objects.order_by("inWifi")
+    return render(request,"boards/bike_list.html", {"bikes": bikes})
     
