@@ -140,12 +140,15 @@
 
                 <div class="bike-list-container">
                     {% for bike in bikes %}
-                        {% if bike.inWifi %}
+                        {% if bike.onCampus %}
                         <li class="bike_onCampus">
-                            {{bike}}
-                            <br>
-                            Claimed by: {{bike.claimedBy}}
-                            <br>
+                            <div class="bike1">
+                                {{bike}}
+                                <br>
+                                Claimed by: {{bike.claimedBy}}
+                                <br>
+                            </div>
+                            
                         </li>
                         {% else %}
                         <li class="bike_offCampus">
