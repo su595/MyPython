@@ -1,9 +1,11 @@
-from datetime import timedelta
+from datetime import date, time, timedelta
 from os import name
 from typing import Match
 from django.db import models
 from django.conf import settings
-from django.utils import timezone
+from datetime import datetime
+import pytz # to make the datetime objects timezone aware and thus comparable
+from firstWebThing import settings as mySettings 
 
 # Create your models here.
 
@@ -17,14 +19,21 @@ class Bike(models.Model):
     onCampus = models.BooleanField(default=True)
     size = models.TextField(max_length=1)
     needsRepair = models.BooleanField(default=False)
-    lastContactWithServer = models.TimeField(timezone.now())
+    lastContactWithServer = models.DateTimeField(datetime.now())
 
     def __str__(self) -> str:
         return self.name
     
     def updateLastContactWithServer(self):
         # if the last time the esp had contact with the server (through the amIClaimed website) is more than 80secs away, the bike is considered to be off campus
-        if timedelta(self.lastContactWithServer - timezone.now()) > timedelta(0, 80, 0): # how to make this seconds??
+        now = datetime.now(pytz.utc)
+        print(now - self.lastContactWithServer)
+
+        if now - self.lastContactWithServer > timedelta(seconds=mySettings.BIKE_OFF_CAMPUS_TIME_LIMIT): # how to make this seconds??
+            print(self.name + " bike off campus")
             self.onCampus = False
+        
+        self.save()
+
 
 

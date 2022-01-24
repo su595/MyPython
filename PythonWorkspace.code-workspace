@@ -5,6 +5,12 @@
 		},
 		{
 			"path": "..\\Arduino"
+		},
+		{
+			"path": "../arduino"
+		},
+		{
+			"path": "../db-python"
 		}
 	]
 }

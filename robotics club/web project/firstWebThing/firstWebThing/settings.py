@@ -115,6 +115,8 @@ USE_L10N = True
 
 USE_TZ = True
 
+BIKE_OFF_CAMPUS_TIME_LIMIT = 20 # time without response from bike after which the bike gets flagged as off campus
+
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/3.2/howto/static-files/

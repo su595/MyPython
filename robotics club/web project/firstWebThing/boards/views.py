@@ -4,16 +4,18 @@ from django.shortcuts import render
 
 from django.http import HttpResponse
 from .models import Bike
-from .myFunctions import detect
-from django.utils import timezone
-
+from datetime import datetime
+import pytz
 
 def bike_list(request):
 
+    # instead of creating a background task (which I don't know how to do atm), we check for off campus bikes like this everytime someone views the main site 
+    otherBikes = Bike.objects.all()
+    for bike in otherBikes:
+        bike.updateLastContactWithServer()
+
     bikes = Bike.objects.order_by("-onCampus") # order the bikes with off-campus-bikes at the bottom
 
-    #if request.POST.get() is not None:
-     #   pass
         
     return render(request,"boards/bike_list.html", {"bikes": bikes})
 
@@ -22,7 +24,6 @@ def amIClaimed(request): # to be used by ESPs
     # this takes in a GET argument, and if that is a mac address that belongs to one of the bikes, the response will be t(rue) or f(alse) wheter that bike is claimed by someone
 
     myMA = request.GET.get("m", "")
-    print(myMA)
 
     if myMA == "":
         return HttpResponse("This is an page for the bikes, not for humans!")
@@ -39,14 +40,13 @@ def amIClaimed(request): # to be used by ESPs
     # we can set the inWifi tag to True (most likely it already is true)
     bike.onCampus = True
 
-    # instead of creating a background task (which I don't know how to do atm), we check for off campus bikes like this regularly -> this only works with a lot of bikes connected 
-    for bike in Bike.objects.all():
-        bike.updateLastContactWithServer()
+    bike.lastContactWithServer = datetime.now(pytz.utc)
 
-    bike.lastContactWithServer = timezone.now()
+    bike.save()
 
     if bike.isClaimed:
         return HttpResponse("t")
     else:
         return HttpResponse("f")
+    
     
