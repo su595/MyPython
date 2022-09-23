@@ -28,5 +28,5 @@ def kgVRechner(a, b): #kleinstesGemeinsamesVielfaches
     return kgV
 
 
-kgVRechner(-5, 10)
+kgVRechner(-5, 13)
 

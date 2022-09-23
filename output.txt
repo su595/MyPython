@@ -1,0 +1,1 @@
+hotspot.macnetix.com (10.34.0.1) at b8:69:f4:25:ab:61 [ether] on wlp2s0

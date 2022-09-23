@@ -1,12 +1,11 @@
-import string
 from PyQt5.QtWidgets import QApplication, QLabel, QLineEdit, QPushButton, QVBoxLayout, QWidget, QFileDialog, QComboBox, QMessageBox, QScrollArea
-from sqlalchemy import false
 import yaml
 import os
 import sys
 import shutil
 from hurry.filesize import size
 import datetime
+from zipfile import ZipFile
 
 
 class CustomWidgets(QWidget):
@@ -47,16 +46,18 @@ class CustomWidgets(QWidget):
         box.exec()
 
 # these get put in the init qt for convenience
-DEFAULT_YML_PATHS = ['/home/yannick/IMPORTANT FILES.yml', '/home/yannick/git-repos/q3py/misc/test.yml']
+DEFAULT_YML_PATHS = ['/home/yannick/IMPORTANT FILES.yml', '/home/yannick/git-repos/MyPython/important projects/test.yml', '/home/yannick/Desktop/smartphone_backup.yml']
 DEFAULT_YML_PATH_IN_BOX = '/home/yannick/IMPORTANT FILES.yml'
 
 MAIN_QT_WIDTH = 800
 MAIN_QT_HEIGHT = 600
-
+UPDATE_THRESHOLD = 1
 
 class LocalBackupManager():
 
     def __init__(self) -> None:
+        # used in updateQT, to reduce no. of updates and lag
+        self.updateCount = 5
         # get self.CONFIG_PATH
         self.initQT()
 
@@ -172,7 +173,7 @@ class LocalBackupManager():
         self.ymlSizeLabel = QLabel("\n")
         self.layout.addWidget(self.ymlSizeLabel)
 
-        self.backupLocationButton = QPushButton("Select the backup location")
+        self.backupLocationButton = QPushButton("A Zip-File will be created at the selected location")
         self.layout.addWidget(self.backupLocationButton)
 
         self.backupLocationLabel = QLabel("\n")
@@ -205,6 +206,7 @@ class LocalBackupManager():
 
         def backupLocationFunc():
             self.backupPath = self.myCustomWidgets.openDirDialog()
+            # if DirDialog was closed
             if not self.backupPath:
                 return
             space = self.getAvailableSpace()
@@ -257,6 +259,7 @@ class LocalBackupManager():
         file.close()
 
         self.loadConfig()
+
         self.updateQTLabels()
 
     def addFilesToConfig(self, listOfPaths):
@@ -297,6 +300,7 @@ class LocalBackupManager():
         if not path:
             return None
 
+        # this is to remove an existing dir if selected again
         tempDirList = []
         try:
             for key in self.ymlDict["directories"].keys():
@@ -472,44 +476,35 @@ class LocalBackupManager():
         # display an info popup
         self.myCustomWidgets.infoPopup("This can take some time, please be paitent and wait until you see another popup saying it's done.\n(especially for backups larger than a few gigabytes)", title="Backup in progress", flag="Information")
         
-        # copy all directories 
-        if self.ymlDict["directories"] is not None:
-            # for every entry in directories
-            for key in self.ymlDict["directories"].keys():
-                # convert the file path to a list of chars for easier char-by-char manipulation
-                templist = list(self.ymlDict["directories"][key]["path"])
+        zipPath = os.path.join(targetDir, "Backup.zip")      
+        # (copied from internet) create a ZipFile object
+        with ZipFile(zipPath, 'w') as zipObj:
+            # copy all directories 
+            if self.ymlDict["directories"] is not None:
+                # for every entry in directories
+                for key in self.ymlDict["directories"].keys():
+                    folderPath = self.ymlDict["directories"][key]["path"]
+                    print("~~~~~~~~~~~~~~~~ " + folderPath)
 
-                #remove forbidden characters from foldername
-                for i in range(len(templist)):
-                    if templist[i] == "/":
-                        templist[i] = "_"
-                    # remove the drive letter if there's one
-                    if templist[i] == ":":
-                        templist[i-1] = ""
-                        templist[i] = ""
+                    for folderName, subfolders, filenames in os.walk(folderPath):
+                        for filename in filenames:
+                            #create complete filepath of file in directory
+                            filePath = os.path.join(folderName, filename)
+                            print(filePath)
+                            # Add file to zip
+                            zipObj.write(filePath)
 
-                # convert the list of chars back to a string
-                folderName = ""
-                for char in templist:
-                    folderName += char
+
+            # copy all single files
+            if self.ymlDict["files"] is not None:
+                fileList = []
+
+                for i in range(len(self.ymlDict["files"].keys())):
+                    fileList.append(self.ymlDict["files"][str(i)])
+                    file = self.ymlDict["files"][str(i)]
+                    zipObj.write(file)
                 
-                newTarget = targetDir + "/" + folderName
-
-                myCopyTree(self.ymlDict["directories"][key]["path"], newTarget, blacklist=self.ymlDict["directories"][key]["blacklist"].values())
-
-        # copy all single files
-        if self.ymlDict["files"] is not None:
-            fileList = []
-
-            for i in range(len(self.ymlDict["files"].keys())):
-                fileList.append(self.ymlDict["files"][str(i)])
-            
-            for path in fileList:
-                newTarget = targetDir + "/files"
-                            
-                if not os.path.exists(newTarget):
-                    os.makedirs(newTarget)
-                shutil.copy2(path, newTarget)
+               
         
         # set metadata
         self.ymlDict["meta"]["lastBackupTime"] = str(datetime.datetime.now())
@@ -526,3 +521,31 @@ class LocalBackupManager():
 # if i ever wanted to import this as a library, this prevents the class from automatically executing if exported and not the "main program"
 if(__name__ == "__main__"):
     LocalBackupManager()
+
+
+def unused():
+    # convert the file path to a list of chars for easier char-by-char manipulation
+    templist = list(self.ymlDict["directories"][key]["path"])
+
+    #remove forbidden characters from foldername
+    for i in range(len(templist)):
+        if templist[i] == "/":
+            templist[i] = "_"
+        # remove the drive letter if there's one
+        if templist[i] == ":":
+            templist[i-1] = ""
+            templist[i] = ""
+
+    # convert the list of chars back to a string
+    folderName = ""
+    for char in templist:
+        folderName += char
+
+    # make a folder name by replacing forbidden chars from folder path
+    folderName = folderPath
+    folderName.replace("/", "_")
+    folderName.replace(":", "") # if theres a dive letter
+
+    newTarget = targetDir + "/" + folderName
+
+    # myCopyTree(self.ymlDict["directories"][key]["path"], newTarget, blacklist=self.ymlDict["directories"][key]["blacklist"].values())

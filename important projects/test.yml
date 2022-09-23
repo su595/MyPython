@@ -1,0 +1,10 @@
+directories:
+  '0':
+    blacklist: {}
+    path: /home/yannick/Documents/trainzz
+files:
+  '0': /home/yannick/Pictures/math.png
+  '1': /home/yannick/Pictures/schalter.png
+meta:
+  lastBackupPath: /home/yannick/Desktop
+  lastBackupTime: '2022-05-07 15:48:35.278429'

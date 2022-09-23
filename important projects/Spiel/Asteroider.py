@@ -79,8 +79,9 @@ class Asteroider(ShowBase):
     def loadConfig(self):
         
         config = configparser.ConfigParser()
-        config.read("Spiel/config.ini")
-        
+        #config.read("Spiel/config.ini")
+        config.read("/home/yannick/git-repos/MyPython/important projects/Spiel/config.ini")
+
         # Hier speichere ich alle Einstellungen aus der config in konstanten, damit der code lesbar bleibt
         self.MY_SQL = dict(config["mysql"])
         self.MEME_TEXTURES = bool(config["game"]["meme_textures"])                    # ( ͡° ͜ʖ ͡°)
