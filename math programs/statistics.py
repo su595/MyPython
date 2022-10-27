@@ -35,7 +35,7 @@ def column_to_number(col): # char of colum name, only defined from A to ZZ
         # A means zero as the second char, but as the first char it stands for + 1*26, so we need to subtract only 64
         return value
     
-    return -1
+    return -1 # if column name is too long, return -1
 
 def convert_columns(columns):
     # convert column letters to numbers
